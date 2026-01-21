@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Entropy Clock v12.1: OMEGA+</title>
+    <style>
+        body {
+            background-color: #050505;
+            color: #00ff41;
+            /* Monospace for code/math */
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Specific class for Emoji/Symbol rendering */
+        .symbol-font {
+            font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Symbola', sans-serif;
+            font-weight: normal;
+        }
+
+        #container {
+            position: relative;
+            width: 95vw;
+            max-width: 900px;
+            border: 1px solid #333;
+            padding: 20px;
+            background: #0a0a0a;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.05);
+            transition: all 0.5s ease;
+        }
+
+        /* Header & Controls */
+        header {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1rem;
+            margin: 0;
+            letter-spacing: 4px;
+            color: #888;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid #333;
+            color: #666;
+            padding: 8px 10px;
+            font-family: inherit;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            flex: 1 1 auto;
+            /* Allow flexible sizing */
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .btn:hover {
+            border-color: #444;
+            color: #ccc;
+        }
+
+        .btn.active {
+            background: #00ff41;
+            color: #000;
+            border-color: #00ff41;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+            transform: scale(1.05);
+        }
+
+        /* Mode Specific Colors */
+        .btn[data-mode="hard"].active {
+            background: #ffaa00;
+            border-color: #ffaa00;
+            box-shadow: 0 0 10px rgba(255, 170, 0, 0.4);
+        }
+
+        .btn[data-mode="hacker"].active {
+            background: #0088ff;
+            border-color: #0088ff;
+            box-shadow: 0 0 10px rgba(0, 136, 255, 0.4);
+        }
+
+        .btn[data-mode="cryptic"].active {
+            background: #d400ff;
+            border-color: #d400ff;
+            box-shadow: 0 0 10px rgba(212, 0, 255, 0.4);
+        }
+
+        .btn[data-mode="extra"].active {
+            background: #ff3333;
+            border-color: #ff3333;
+            box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+        }
+
+        .btn[data-mode="omega"].active {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Time Rows */
+        .time-row {
+            display: flex;
+            align-items: center;
+            margin: 25px 0;
+            min-height: 50px;
+            position: relative;
+        }
+
+        .label {
+            font-size: 0.8rem;
+            color: #444;
+            width: 70px;
+            text-align: right;
+            margin-right: 20px;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+
+        .equation-container {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .equation {
+            font-size: 1.1rem;
+            word-break: break-word;
+            color: #e0e0e0;
+            line-height: 1.4;
+            transition: opacity 0.2s;
+            white-space: pre-wrap;
+        }
+
+        /* Cheat Overlay */
+        .cheat-answer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            color: #fff;
+            background: rgba(10, 10, 10, 0.95);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            padding-left: 10px;
+            z-index: 10;
+        }
+
+        .time-row:hover .equation {
+            opacity: 0.1;
+        }
+
+        .time-row:hover .cheat-answer {
+            opacity: 1;
+        }
+
+        /* Visual Extras */
+        #epoch-canvas {
+            width: 100%;
+            height: 40px;
+            min-height: 40px;
+            /* Ensure logical height exists */
+            margin-top: 20px;
+            border-top: 1px dashed #333;
+            border-bottom: 1px dashed #333;
+            opacity: 0.8;
+            display: block;
+        }
+
+        .meta-data {
+            margin-top: 10px;
+            font-size: 0.6rem;
+            color: #444;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Dynamic coloring based on mode */
+        body.mode-hard #container {
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.1);
+            border-color: #530;
+        }
+
+        body.mode-hard .equation {
+            color: #ffeebb;
+        }
+
+        body.mode-hacker #container {
+            box-shadow: 0 0 15px rgba(0, 136, 255, 0.1);
+            border-color: #035;
+        }
+
+        body.mode-hacker .equation {
+            color: #cceeff;
+            font-family: 'Consolas', monospace;
+        }
+
+        body.mode-cryptic #container {
+            box-shadow: 0 0 15px rgba(212, 0, 255, 0.1);
+            border-color: #405;
+        }
+
+        body.mode-cryptic .equation {
+            color: #faccff;
+            letter-spacing: 2px;
+        }
+
+        body.mode-extra #container {
+            box-shadow: 0 0 20px rgba(255, 51, 51, 0.2);
+            border-color: #511;
+        }
+
+        body.mode-extra .equation {
+            color: #ffcccc;
+        }
+
+        body.mode-omega #container {
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+            border-color: #888;
+            background: #000;
+        }
+
+        body.mode-omega .equation {
+            color: #ffffff;
+            font-weight: bold;
+            text-shadow: 0 0 5px #fff;
+        }
+
+        .small-text {
+            font-size: 0.7rem !important;
+            letter-spacing: 1px;
+        }
+
+        .med-text {
+            font-size: 0.9rem !important;
+        }
+    </style>
+</head>
+
+<body class="mode-normal">
+
+    <div id="container">
+        <header>
+            <h1>ENTROPY CLOCK v12.1</h1>
+            <div class="controls">
+                <button class="btn" onclick="setMode('beginner')" data-mode="beginner">Beg</button>
+                <button class="btn active" onclick="setMode('normal')" data-mode="normal">Norm</button>
+                <button class="btn" onclick="setMode('hard')" data-mode="hard">Hard</button>
+                <button class="btn" onclick="setMode('hacker')" data-mode="hacker">Hacker</button>
+                <button class="btn" onclick="setMode('cryptic')" data-mode="cryptic">Cryptic</button>
+                <button class="btn" onclick="setMode('extra')" data-mode="extra">Chaos</button>
+                <button class="btn" onclick="setMode('omega')" data-mode="omega">OMEGA</button>
+            </div>
+        </header>
+
+        <div class="time-row">
+            <div class="label">HOUR</div>
+            <div class="equation-container">
+                <div class="equation" id="hour-eq">...</div>
+                <div class="cheat-answer" id="hour-val">00</div>
+            </div>
+        </div>
+
+        <div class="time-row">
+            <div class="label">MINUTE</div>
+            <div class="equation-container">
+                <div class="equation" id="minute-eq">...</div>
+                <div class="cheat-answer" id="minute-val">00</div>
+            </div>
+        </div>
+
+        <div class="time-row">
+            <div class="label">SECOND</div>
+            <div class="equation-container">
+                <div class="equation" id="second-eq">...</div>
+                <div class="cheat-answer" id="second-val">00</div>
+            </div>
+        </div>
+
+        <canvas id="epoch-canvas"></canvas>
+
+        <div class="meta-data">
+            <span id="difficulty-lbl">MODE: NORMAL</span>
+            <span id="render-cost">COST: 0ms</span>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA RESOURCES ---
+
+        const BRAILLE_MAP = ['⠚', '⠁', '⠃', '⠉', '⠙', '⠑', '⠋', '⠛', '⠓', '⠊'];
+        const MORSE_MAP = {
+            '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+            '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.'
+        };
+        const ROMAN_VALS = [
+            { v: 50, s: 'L' }, { v: 40, s: 'XL' }, { v: 10, s: 'X' },
+            { v: 9, s: 'IX' }, { v: 5, s: 'V' }, { v: 4, s: 'IV' }, { v: 1, s: 'I' }
+        ];
+
+        // --- MATH HELPERS ---
+
+        function getFactors(num) {
+            if (num <= 1) return [];
+            const factors = [];
+            for (let i = 2; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) {
+                    factors.push(i);
+                    if (i !== num / i) factors.push(num / i);
+                }
+            }
+            return factors;
+        }
+
+        // --- GENERATORS ---
+
+        const Generators = {
+            // 1. BEGINNER: Simple + and -
+            mathSimple: (n) => generateMath(n, 1, ['+', '-']),
+
+            // 2. NORMAL: Adds *
+            mathNormal: (n) => generateMath(n, 2, ['+', '-', '*']),
+
+            // 3. HARD: Adds % and / and depth
+            mathHard: (n) => generateMath(n, 3, ['+', '-', '*', '%', '/']),
+
+            // 4. HACKER: Bitwise & Bases
+            hacker: (n) => generateBitwise(n),
+
+            // 5. CRYPTIC: Visual Patterns
+            cryptic: (n) => {
+                const methods = ['braille', 'morse', 'roman', 'dice'];
+                const m = methods[Math.floor(Math.random() * methods.length)];
+                return Generators[m](n);
+            },
+
+            // 6. OMEGA: Obscure JS Functions
+            omega: (n) => generateOmega(n),
+
+            // -- Sub-Generators for Cryptic/Hacker --
+            binary: (n) => '0b' + n.toString(2).padStart(6, '0'),
+            hex: (n) => '0x' + n.toString(16).toUpperCase(),
+            octal: (n) => '0o' + n.toString(8),
+
+            braille: (n) => {
+                const s = n.toString();
+                const symbols = s.split('').map(d => BRAILLE_MAP[parseInt(d)]).join(' ');
+                return `<span class="symbol-font">${symbols}</span>`;
+            },
+            morse: (n) => n.toString().split('').map(d => MORSE_MAP[d]).join('   '),
+            roman: (n) => {
+                if (n === 0) return 'NULLA';
+                let r = '', num = n;
+                for (let i of ROMAN_VALS) { while (num >= i.v) { r += i.s; num -= i.v; } }
+                return r;
+            },
+            dice: (n) => {
+                if (n === 0) return '<span class="symbol-font">□</span>';
+                let d = [], rem = n;
+                const f = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+                while (rem > 0) {
+                    let t = Math.min(rem, 6);
+                    rem -= t;
+                    d.push(f[t - 1]);
+                }
+                return `<span class="symbol-font">${d.join(' ')}</span>`;
+            }
+        };
+
+        // --- MATH ENGINE ---
+
+        function generateMath(target, depth, ops) {
+            if (depth <= 0) return target.toString();
+            const op = ops[Math.floor(Math.random() * ops.length)];
+            let a, b;
+            try {
+                if (op === '+') {
+                    a = Math.floor(Math.random() * target);
+                    b = target - a;
+                } else if (op === '-') {
+                    b = Math.floor(Math.random() * 20) + 1;
+                    a = target + b;
+                } else if (op === '*') {
+                    const f = getFactors(target);
+                    if (f.length > 0) {
+                        a = f[Math.floor(Math.random() * f.length)];
+                        b = target / a;
+                    } else { return `(${generateMath(target, depth - 1, ops)}+0)`; }
+                } else if (op === '%') { // a % b = target. 
+                    b = target + Math.floor(Math.random() * 10) + 3;
+                    a = b + target;
+                } else if (op === '/') { // a / b = target
+                    b = Math.floor(Math.random() * 3) + 2;
+                    a = target * b;
+                }
+                return `(${generateMath(a, depth - 1, ops)} ${op} ${generateMath(b, depth - 1, ops)})`;
+            } catch (e) { return target.toString(); }
+        }
+
+        // --- BITWISE ENGINE (Hacker Mode) ---
+        function generateBitwise(target) {
+            const type = Math.random();
+            // 40% chance of standard base conversion
+            if (type < 0.4) {
+                const bases = ['binary', 'hex', 'octal'];
+                return Generators[bases[Math.floor(Math.random() * 3)]](target);
+            }
+
+            // 60% chance of bitwise logic
+            const ops = ['^', '&', '|', '<<', '>>'];
+            const op = ops[Math.floor(Math.random() * ops.length)];
+
+            if (op === '^') { // XOR: a ^ b = target -> a = target ^ b
+                let b = Math.floor(Math.random() * 255);
+                let a = target ^ b;
+                return `(${a} ^ ${b})`;
+            }
+            if (op === '|') { // OR: a | b = target. Tricky.
+                // Cheat: target | 0 = target
+                return `(0x${target.toString(16)} | 0)`;
+            }
+            if (op === '&') { // AND: a & b = target.
+                // Cheat: target & target = target, or (target | mask) & target
+                return `(${target | 0xFF} & ${target})`;
+            }
+            if (op === '<<') { // Left Shift: a << b = target.
+                // Only works if target is even
+                if (target > 0 && target % 2 === 0) {
+                    return `(${target / 2} << 1)`;
+                }
+                return `(${target} << 0)`;
+            }
+            if (op === '>>') { // Right Shift
+                return `(${target * 2} >> 1)`;
+            }
+            return target.toString();
+        }
+
+        // --- OMEGA ENGINE (Obscure Methods) ---
+        function generateOmega(target) {
+            const methods = [
+                // 1. Bitwise NOT magic: ~(-n-1) === n. High confusion value.
+                () => `~${-target - 1}`,
+
+                // 2. Type Coercion: +([d1] + [d2]) -> Number("d1d2")
+                () => {
+                    const d1 = Math.floor(target / 10);
+                    const d2 = target % 10;
+                    return `+([${d1}]+[${d2}])`;
+                },
+
+                // 3. Math.hypot (Square root of sum of squares)
+                () => `Math.hypot(${target}, 0)`,
+
+                // 4. Character Code Math: 'A' is 65.
+                () => `'${String.fromCharCode(target + 32)}'.charCodeAt(0) - 32`,
+
+                // 5. Function Constructor (Clean 'eval')
+                () => `new Function('return ${target}')()`,
+
+                // 6. Set uniqueness (De-duping returns array of 1)
+                () => `[...new Set([${target}, ${target}])][0]`,
+
+                // 7. Binary string parsing with radix
+                () => `parseInt("${target.toString(2)}", 2)`,
+
+                // 8. Math.clz32 (Count Leading Zeros). clz32(1) = 31 in 32-bit int.
+                // Formula: 31 - clz32(1) = 0. + target.
+                () => `(31 - Math.clz32(1) + ${target})`,
+
+                // 9. IIFE (Immediately Invoked Function Expression)
+                () => `(()=>${target})()`,
+
+                // 10. The Void operator (returns undefined, comma operator returns last)
+                () => `(void 0, ${target})`,
+
+                // 11. Boolean Multiplication (true coerces to 1)
+                () => `(${target} * true)`,
+
+                // 12. Object Key coercion (Keys are strings, + coerces back)
+                () => `+Object.keys({${target}:0})[0]`,
+
+                // 13. Double Bitwise NOT (Truncates to integer, identity for int)
+                () => `~~${target}`,
+
+                // 14. Array Find with short-circuit
+                () => `[0, ${target}].find(x => x > 0) || 0`,
+
+                // 15. Safe Integer Math
+                () => `Number.MAX_SAFE_INTEGER - ${Number.MAX_SAFE_INTEGER - target}`
+            ];
+
+            const picked = methods[Math.floor(Math.random() * methods.length)];
+            return picked();
+        }
+
+        // --- MODE CONFIG ---
+
+        const MODES = {
+            beginner: { label: 'BEGINNER', pool: ['mathSimple'] },
+            normal: { label: 'NORMAL', pool: ['mathNormal'] },
+            hard: { label: 'HARD', pool: ['mathHard'] },
+            hacker: { label: 'HACKER', pool: ['hacker'] },
+            cryptic: { label: 'CRYPTIC', pool: ['cryptic'] },
+            extra: { label: 'CHAOS', pool: ['mathHard', 'hacker', 'cryptic'] },
+            omega: { label: 'OMEGA', pool: ['omega'] }
+        };
+
+        let currentMode = 'normal';
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.btn[data-mode="${mode}"]`).classList.add('active');
+
+            document.body.className = `mode-${mode}`;
+            document.getElementById('difficulty-lbl').innerText = `MODE: ${MODES[mode].label}`;
+
+            lastSecond = -1;
+            update();
+        }
+
+        // --- RENDER LOOP ---
+
+        const cvs = document.getElementById('epoch-canvas');
+        const ctx = cvs.getContext('2d');
+
+        function resize() {
+            // Updated to getBoundingClientRect for reliability
+            const rect = cvs.getBoundingClientRect();
+            cvs.width = rect.width;
+            cvs.height = rect.height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function drawEpochStream() {
+            // Safety: If dimensions are 0 (layout race condition), force resize
+            if (cvs.width === 0 || cvs.height === 0) {
+                resize();
+            }
+
+            const now = Date.now();
+            const binary = now.toString(2);
+
+            ctx.fillStyle = currentMode === 'omega' ? '#000' : '#050505';
+            ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+            const columns = 64;
+            const bitWidth = cvs.width / columns;
+
+            for (let i = 0; i < columns; i++) {
+                const isRealBit = i < binary.length;
+                const bit = isRealBit ? binary[i] : (Math.random() > 0.5 ? '1' : '0');
+
+                if (currentMode === 'omega') ctx.fillStyle = bit === '1' ? '#fff' : '#222';
+                else if (currentMode === 'extra') ctx.fillStyle = bit === '1' ? '#ff3333' : '#300';
+                else if (currentMode === 'cryptic') ctx.fillStyle = bit === '1' ? '#d400ff' : '#202';
+                else if (currentMode === 'hacker') ctx.fillStyle = bit === '1' ? '#0088ff' : '#002244';
+                else if (currentMode === 'hard') ctx.fillStyle = bit === '1' ? '#ffaa00' : '#320';
+                else ctx.fillStyle = bit === '1' ? '#00ff41' : '#003311';
+
+                if (bit === '1') {
+                    // Added random height variation for noise bits to make it look active
+                    const heightVar = isRealBit ? 0 : Math.random() * 8;
+                    ctx.fillRect(i * bitWidth, 5 + heightVar, bitWidth - 1, cvs.height - 10 - heightVar);
+                } else {
+                    ctx.globalAlpha = 0.3;
+                    ctx.fillRect(i * bitWidth, (cvs.height / 2) - 1, bitWidth - 1, 2);
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+        }
+
+        let lastSecond = -1;
+
+        function update() {
+            const start = performance.now();
+            const now = new Date();
+            const timeParts = [now.getHours(), now.getMinutes(), now.getSeconds()];
+            const elementIds = ['hour-eq', 'minute-eq', 'second-eq'];
+            const cheatIds = ['hour-val', 'minute-val', 'second-val'];
+
+            if (now.getSeconds() !== lastSecond) {
+                lastSecond = now.getSeconds();
+                const pool = MODES[currentMode].pool;
+
+                timeParts.forEach((val, idx) => {
+                    const genKey = pool[Math.floor(Math.random() * pool.length)];
+                    const result = Generators[genKey](val);
+
+                    const el = document.getElementById(elementIds[idx]);
+                    el.innerHTML = result;
+
+                    el.classList.remove('small-text', 'med-text');
+                    const textLen = result.replace(/<[^>]*>?/gm, '').length;
+
+                    if (textLen > 25) el.classList.add('small-text');
+                    else if (textLen > 15) el.classList.add('med-text');
+
+                    document.getElementById(cheatIds[idx]).innerText = val < 10 ? '0' + val : val;
+                });
+            }
+
+            drawEpochStream();
+
+            const end = performance.now();
+            document.getElementById('render-cost').innerText = `COST: ${(end - start).toFixed(2)}ms`;
+
+            requestAnimationFrame(update);
+        }
+
+        update();
+
+    </script>
+</body>
+
+</html>

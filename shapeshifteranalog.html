@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shapeshifter Analog Clock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #222;
+            color: #fff;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: relative;
+            transition: background-color 1s;
+        }
+
+        /* The Clock Face Container */
+        .clock-face {
+            position: absolute;
+            /* Start centered */
+            top: 50%;
+            left: 50%;
+            /* Removed fixed sizes here, handled by JS */
+            border: 8px solid #fff;
+            background: #333;
+            border-radius: 50%;
+            transition:
+                width 1s cubic-bezier(0.5, 0, 0.5, 1),
+                height 1s cubic-bezier(0.5, 0, 0.5, 1),
+                border-radius 1s ease,
+                background-color 1s ease,
+                border-color 1s ease,
+                top 1s ease,
+                left 1s ease,
+                transform 0.1s linear;
+            /* Fast rotation */
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .number {
+            position: absolute;
+            text-align: center;
+            font-weight: bold;
+            font-family: sans-serif;
+            pointer-events: none;
+            /* Transition the offset distance */
+            transition: transform 1s ease, font-size 1s ease;
+        }
+
+        .center-dot {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: white;
+            border-radius: 50%;
+            z-index: 10;
+        }
+
+        .hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            border-radius: 10px;
+            transition: height 1s ease, width 1s ease, background-color 0.5s;
+            mix-blend-mode: hard-light;
+        }
+
+        /* Initial values, overridden immediately */
+        .hand.hour {
+            z-index: 3;
+        }
+
+        .hand.min {
+            z-index: 4;
+        }
+
+        .hand.sec {
+            z-index: 5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="clock-face" id="clock">
+        <div class="center-dot"></div>
+        <div class="hand hour" id="hand-hour"></div>
+        <div class="hand min" id="hand-min"></div>
+        <div class="hand sec" id="hand-sec"></div>
+    </div>
+
+    <div class="absolute bottom-5 right-5 text-xs font-mono text-gray-500 max-w-xs text-right">
+        <p>Everything changes size.</p>
+        <p>Everything moves.</p>
+        <p>Hands follow the lies.</p>
+        <p>Good luck.</p>
+    </div>
+
+    <script>
+        const clock = document.getElementById('clock');
+        const hHand = document.getElementById('hand-hour');
+        const mHand = document.getElementById('hand-min');
+        const sHand = document.getElementById('hand-sec');
+
+        // Store references to number elements
+        const numberElements = [];
+        // Map to store where each number (1-12) currently "lives" (angle)
+        let numberLocations = {};
+
+        // Create numbers 1-12
+        for (let i = 1; i <= 12; i++) {
+            const div = document.createElement('div');
+            div.className = 'number';
+            div.innerText = i;
+            // Store the base angle (Fixed slots: 30, 60, ... 360)
+            div.dataset.baseAngle = i * 30;
+            clock.appendChild(div);
+            numberElements.push(div);
+        }
+
+        // Random helpers
+        const rand = (min, max) => Math.random() * (max - min) + min;
+        const randColor = () => `rgb(${rand(50, 255)}, ${rand(50, 255)}, ${rand(50, 255)})`;
+
+        // Helper to interpolate between two angles (shortest path)
+        function interpolateAngles(startDeg, endDeg, fraction) {
+            let diff = endDeg - startDeg;
+            // Normalize diff to -180 to 180 to take shortest path
+            while (diff < -180) diff += 360;
+            while (diff > 180) diff -= 360;
+            return startDeg + (diff * fraction);
+        }
+
+        function update() {
+            const now = new Date();
+            const ms = now.getMilliseconds();
+            const s = now.getSeconds();
+            const m = now.getMinutes();
+            const h = now.getHours();
+
+            // 1. ROTATION LOGIC (Face rotates, hands ride along)
+            const faceRot = -((s * 6) + (ms * 0.006));
+            clock.style.transform = `translate(-50%, -50%) rotate(${faceRot}deg)`;
+
+            // 2. HAND ANGLES - DYNAMIC MAPPING
+            // We need to find where the numbers corresponding to H, M, S actually are.
+
+            // --- HOUR HAND ---
+            // Current hour number (1-12)
+            const hNum = h % 12 || 12;
+            const hNextNum = (hNum % 12) + 1;
+
+            // Get angles of these numbers from our current chaos map
+            const hAngleStart = numberLocations[hNum] || 0;
+            const hAngleEnd = numberLocations[hNextNum] || 0;
+
+            // Interpolate based on minutes passed
+            const hDeg = interpolateAngles(hAngleStart, hAngleEnd, m / 60);
+
+            // --- MINUTE HAND ---
+            // Map 0-59 minutes to 1-12 clock positions.
+            // 0 mins = 12, 5 mins = 1, 10 mins = 2...
+            // Math.floor(m / 5) gives 0-11. 0 maps to 12.
+            let mNumStart = Math.floor(m / 5);
+            if (mNumStart === 0) mNumStart = 12;
+
+            let mNumEnd = (mNumStart % 12) + 1;
+
+            const mAngleStart = numberLocations[mNumStart] || 0;
+            const mAngleEnd = numberLocations[mNumEnd] || 0;
+
+            // Fraction within the 5-minute block
+            const mFraction = (m % 5 + s / 60) / 5;
+            const mDeg = interpolateAngles(mAngleStart, mAngleEnd, mFraction);
+
+            // --- SECOND HAND ---
+            let sNumStart = Math.floor(s / 5);
+            if (sNumStart === 0) sNumStart = 12;
+
+            let sNumEnd = (sNumStart % 12) + 1;
+
+            const sAngleStart = numberLocations[sNumStart] || 0;
+            const sAngleEnd = numberLocations[sNumEnd] || 0;
+
+            const sFraction = (s % 5 + ms / 1000) / 5;
+            const sDeg = interpolateAngles(sAngleStart, sAngleEnd, sFraction);
+
+
+            // Apply transforms (relative to the rotating container)
+            hHand.style.transform = `translateX(-50%) rotate(${hDeg}deg)`;
+            mHand.style.transform = `translateX(-50%) rotate(${mDeg}deg)`;
+            sHand.style.transform = `translateX(-50%) rotate(${sDeg}deg)`;
+        }
+
+        function randomizeCSS() {
+            // --- 0. SHUFFLE NUMBERS & MAP LOCATIONS ---
+            // Create array 1-12 and shuffle it
+            const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].sort(() => Math.random() - 0.5);
+
+            // Reset location map
+            numberLocations = {};
+
+            // --- 1. CLOCK FACE SHAPE ---
+            const w = rand(30, 80);
+            const h = rand(30, 80);
+            clock.style.width = `${w}vmin`;
+            clock.style.height = `${h}vmin`;
+            clock.style.borderRadius = `${rand(10, 50)}% ${rand(10, 50)}% ${rand(10, 50)}% ${rand(10, 50)}%`;
+            clock.style.backgroundColor = `rgb(${rand(10, 40)}, ${rand(10, 40)}, ${rand(10, 40)})`;
+            clock.style.borderColor = randColor();
+            clock.style.top = `${rand(45, 55)}%`;
+            clock.style.left = `${rand(45, 55)}%`;
+
+            // --- 2. HAND MUTATION ---
+            hHand.style.height = `${rand(15, 35)}%`;
+            hHand.style.width = `${rand(8, 20)}px`;
+            hHand.style.backgroundColor = randColor();
+
+            mHand.style.height = `${rand(25, 48)}%`;
+            mHand.style.width = `${rand(4, 12)}px`;
+            mHand.style.backgroundColor = randColor();
+
+            sHand.style.height = `${rand(35, 50)}%`;
+            sHand.style.width = `${rand(1, 6)}px`;
+            sHand.style.backgroundColor = randColor();
+
+            // --- 3. SCATTERED NUMBERS & UPDATE MAP ---
+            numberElements.forEach((divElement, index) => {
+                // The physical slot angle
+                const baseAngle = parseFloat(divElement.dataset.baseAngle);
+
+                // The value we are putting in this slot
+                const numValue = nums[index];
+                divElement.innerText = numValue;
+
+                // Store mapping: Where is Number X? It's at baseAngle.
+                // (Note: we treat the slot angle as the location of the number)
+                numberLocations[numValue] = baseAngle;
+
+                // Random dist from center
+                const dist = rand(30, 48);
+                // Visual transform
+                divElement.style.transform = `rotate(${baseAngle}deg) translateY(-${dist}vmin) rotate(-${baseAngle}deg)`;
+                divElement.style.fontSize = `${rand(1, 3)}rem`;
+                divElement.style.color = randColor();
+            });
+
+            document.body.style.backgroundColor = `rgb(${rand(5, 20)}, ${rand(5, 20)}, ${rand(5, 20)})`;
+        }
+
+        // Run animation loop
+        function loop() {
+            update();
+            requestAnimationFrame(loop);
+        }
+
+        // Initialize Map immediately so first frame works
+        randomizeCSS();
+
+        // Start Loop
+        loop();
+
+        // Run Chaos CSS updater every second
+        setInterval(randomizeCSS, 1000);
+
+    </script>
+</body>
+
+</html>

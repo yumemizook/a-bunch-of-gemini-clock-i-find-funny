@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Chronometer - Stable Version</title>
+    <style>
+        :root {
+            --bg-color: #050a10;
+            --text-primary: #00ffea;
+            --text-dim: #005f57;
+            --alert-color: #ff3333;
+            --panel-bg: rgba(10, 20, 30, 0.95);
+            --border-color: #00ffea;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            background-image:
+                linear-gradient(rgba(0, 20, 20, 0.8), rgba(0, 5, 10, 0.9)),
+                repeating-linear-gradient(0deg, transparent, transparent 2px, #00ffea05 3px);
+        }
+
+        .container {
+            width: 90%;
+            max-width: 700px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 3rem;
+            box-shadow: 0 0 40px rgba(0, 255, 234, 0.1);
+            text-align: center;
+            position: relative;
+            border-radius: 8px;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--text-dim);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: #112;
+            margin-bottom: 30px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--text-primary);
+            width: 0%;
+            transition: width 0.4s ease-out;
+            box-shadow: 0 0 10px var(--text-primary);
+        }
+
+        .main-display {
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .prompt {
+            font-size: 1.2rem;
+            color: #889;
+            margin-bottom: 1rem;
+        }
+
+        .date-large {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(0, 255, 234, 0.3);
+            margin-bottom: 5px;
+        }
+
+        .time-large {
+            font-size: 2rem;
+            font-weight: normal;
+            color: var(--text-primary);
+            margin-top: 5px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .time-dimmed {
+            color: var(--text-dim);
+            opacity: 0.5;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            background: rgba(0, 40, 40, 0.3);
+            border: 1px solid var(--text-primary);
+            color: var(--text-primary);
+            padding: 15px 50px;
+            font-family: inherit;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        button:hover {
+            background: var(--text-primary);
+            color: #000;
+            box-shadow: 0 0 25px var(--text-primary);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .phase-indicator {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="hud-top">
+            <span id="step-count">STEP 0/55</span>
+            <span id="system-status">SYSTEM ONLINE</span>
+        </div>
+
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress"></div>
+        </div>
+
+        <!-- Search Interface -->
+        <div id="interface-search">
+            <div class="main-display">
+                <div class="prompt">Is the target time <strong>AFTER</strong>:</div>
+
+                <div id="display-date" class="date-large">Loading...</div>
+                <div id="display-time" class="time-large">Loading...</div>
+                <div id="phase-text" class="phase-indicator">PHASE 1: DATE SEARCH</div>
+            </div>
+
+            <div class="controls">
+                <button onclick="handleAnswer(false)">NO</button>
+                <button onclick="handleAnswer(true)">YES</button>
+            </div>
+        </div>
+
+        <!-- Result Interface -->
+        <div id="interface-result" class="hidden">
+            <div class="main-display">
+                <div class="prompt" style="color:var(--text-primary);">TEMPORAL COORDINATES LOCKED</div>
+                <div id="result-date" class="date-large"></div>
+                <div id="result-time" class="time-large"></div>
+                <div style="margin-top: 30px; font-size: 0.9rem; color: #888;">Is this correct?</div>
+            </div>
+            <div class="controls">
+                <button onclick="location.reload()">New Search</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURATION
+        // Range covers approx 273,000 years BC to AD
+        const MAX_TIME = 8640000000000000;
+        const MIN_TIME = -8640000000000000;
+        const ONE_DAY_MS = 86400000;
+
+        let min = MIN_TIME;
+        let max = MAX_TIME;
+        let currentGuess = 0;
+        let step = 0;
+        let isDatePhase = true;
+
+        function updateUI() {
+            const range = max - min;
+            const rawMidpoint = (min + max) / 2;
+
+            // --- STABILIZATION LOGIC ---
+            // If the search window is larger than 24 hours, we snap the guess 
+            // to the exact start of that day (00:00:00).
+            // This prevents the hh:mm:ss from jumping around wildly while searching for the year.
+
+            if (range > ONE_DAY_MS) {
+                isDatePhase = true;
+                const d = new Date(rawMidpoint);
+                d.setUTCHours(0, 0, 0, 0); // Snap to Midnight UTC
+                currentGuess = d.getTime();
+
+                // Edge case: If snapping pushes us out of bounds (rare), revert to raw
+                if (currentGuess <= min || currentGuess >= max) {
+                    currentGuess = Math.floor(rawMidpoint);
+                }
+            } else {
+                isDatePhase = false;
+                currentGuess = Math.floor(rawMidpoint);
+            }
+
+            renderDisplay(currentGuess);
+        }
+
+        function renderDisplay(ms) {
+            const date = new Date(ms);
+
+            if (isNaN(date.getTime())) return; // Safety
+
+            const year = date.getUTCFullYear();
+            const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+            const month = monthNames[date.getUTCMonth()];
+            const day = date.getUTCDate().toString().padStart(2, '0');
+
+            const hours = date.getUTCHours().toString().padStart(2, '0');
+            const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+            const seconds = date.getUTCSeconds().toString().padStart(2, '0');
+
+            let era = year < 0 ? "BC" : "AD";
+            let absYear = Math.abs(year).toString().padStart(4, '0');
+
+            // DOM Updates
+            document.getElementById('display-date').innerText = `${absYear} ${era} - ${month} ${day}`;
+
+            const timeEl = document.getElementById('display-time');
+            const phaseEl = document.getElementById('phase-text');
+
+            timeEl.innerText = `${hours}:${minutes}:${seconds} UTC`;
+
+            if (isDatePhase) {
+                // Dim the time to show it's locked/stabilized
+                timeEl.classList.add('time-dimmed');
+                phaseEl.innerText = "PHASE 1: ISOLATING DATE (Time Locked at Midnight)";
+                phaseEl.style.color = "#005f57";
+            } else {
+                // Highlight time when we are actually searching it
+                timeEl.classList.remove('time-dimmed');
+                phaseEl.innerText = "PHASE 2: ISOLATING EXACT TIME";
+                phaseEl.style.color = "#00ffea";
+            }
+
+            document.getElementById('step-count').innerText = `STEP ${step}`;
+
+            // Progress Calculation (Logarithmic feel)
+            // It takes approx 54 steps to clear the whole range
+            let progress = (step / 54) * 100;
+            if (progress > 100) progress = 100;
+            document.getElementById('progress').style.width = `${progress}%`;
+        }
+
+        function handleAnswer(isAfter) {
+            step++;
+
+            if (isAfter) {
+                // User says the target is AFTER the current guess
+                min = currentGuess + 1;
+            } else {
+                // User says the target is BEFORE (or is) the current guess
+                max = currentGuess;
+            }
+
+            // Check if narrowed down to 1 second
+            if ((max - min) <= 1000) {
+                revealResult();
+            } else {
+                updateUI();
+            }
+        }
+
+        function revealResult() {
+            document.getElementById('interface-search').classList.add('hidden');
+            document.getElementById('interface-result').classList.remove('hidden');
+
+            // Render final result
+            const date = new Date(min);
+            const year = date.getUTCFullYear();
+            const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+            const month = monthNames[date.getUTCMonth()];
+            const day = date.getUTCDate().toString().padStart(2, '0');
+            const hours = date.getUTCHours().toString().padStart(2, '0');
+            const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+            const seconds = date.getUTCSeconds().toString().padStart(2, '0');
+            let era = year < 0 ? "BC" : "AD";
+
+            document.getElementById('result-date').innerText = `${Math.abs(year)} ${era} - ${month} ${day}`;
+            document.getElementById('result-time').innerText = `${hours}:${minutes}:${seconds} UTC`;
+
+            document.getElementById('progress').style.width = '100%';
+            document.getElementById('system-status').innerText = "TARGET ACQUIRED";
+        }
+
+        // Init
+        updateUI();
+
+    </script>
+</body>
+
+</html>

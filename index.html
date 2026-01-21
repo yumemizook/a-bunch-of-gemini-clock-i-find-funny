@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Wibbly Wobbly Time Portal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:ital,wght@1,700&family=Rubik+Bubbles&display=swap');
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #ff00cc, #3333ff, #00ffcc, #ffff33);
+            background-size: 400% 400%;
+            animation: rainbowSwirl 15s ease infinite;
+            font-family: 'Comic Neue', cursive;
+            overflow: hidden;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>') 16 16, auto;
+        }
+
+        @keyframes rainbowSwirl {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        h1 {
+            font-family: 'Rubik Bubbles', cursive;
+            font-size: 4rem;
+            color: #fff;
+            text-shadow: 4px 4px 0px #000;
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: float 3s ease-in-out infinite, wobble 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        @keyframes wobble {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-5deg);
+            }
+
+            75% {
+                transform: rotate(5deg);
+            }
+        }
+
+        .portal-container {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+
+        .portal-link {
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2rem;
+            border-radius: 30px 50px 20px 60px;
+            /* Quirky shape */
+            color: #000;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: 5px solid #000;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 10px 10px 0 #000;
+            text-align: center;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .portal-link:hover {
+            transform: scale(1.1) rotate(3deg);
+            background: #fff;
+            box-shadow: 15px 15px 0 #000;
+            z-index: 10;
+        }
+
+        .portal-link:nth-child(1) {
+            border-color: #ff3366;
+            color: #ff3366;
+        }
+
+        .portal-link:nth-child(2) {
+            border-color: #33cc33;
+            color: #33cc33;
+            border-radius: 50px 20px 60px 30px;
+        }
+
+        .portal-link:nth-child(3) {
+            border-color: #3366ff;
+            color: #3366ff;
+            border-radius: 20px 60px 30px 50px;
+        }
+
+        .portal-link:nth-child(1):hover {
+            background: #ffe6eb;
+        }
+
+        .portal-link:nth-child(2):hover {
+            background: #e6ffe6;
+        }
+
+        .portal-link:nth-child(3):hover {
+            background: #e6ebff;
+        }
+
+        .tooltip {
+            display: block;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            color: #555;
+            font-style: italic;
+        }
+
+        /* Floating particles */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            font-size: 2rem;
+            animation: rain 10s linear infinite;
+            opacity: 0.6;
+        }
+
+        @keyframes rain {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+            }
+
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+
+        .marquee-container {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #000;
+            color: #0f0;
+            padding: 10px 0;
+            font-family: monospace;
+            overflow: hidden;
+            white-space: nowrap;
+            border-top: 4px solid #fff;
+        }
+
+        .marquee-text {
+            display: inline-block;
+            animation: marquee 20s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% {
+                transform: translateX(100vw);
+            }
+
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Background particles -->
+    <div class="particle" style="left: 10%; animation-duration: 8s;">⏰</div>
+    <div class="particle" style="left: 30%; animation-duration: 12s;">⏳</div>
+    <div class="particle" style="left: 60%; animation-duration: 6s;">🌀</div>
+    <div class="particle" style="left: 80%; animation-duration: 10s;">❓</div>
+
+    <h1>The Wibbly Wobbly<br>Time Portal</h1>
+
+    <div class="portal-container">
+        <a href="entropyclock.html" class="portal-link">
+            Entropy Clock
+            <span class="tooltip">(It's melting!)</span>
+        </a>
+        <a href="chaosdigitalclock.html" class="portal-link">
+            Chaos Digital
+            <span class="tooltip">(Don't trust the numbers)</span>
+        </a>
+        <a href="shapeshifteranalog.html" class="portal-link">
+            Shapeshifter Analog
+            <span class="tooltip">(Identity crisis?)</span>
+        </a>
+        <a href="time-predictor.html" class="portal-link">
+            Time Predictor
+            <span class="tooltip">(Hunt for the moment)</span>
+        </a>
+        <a href="chronoscalendar.html" class="portal-link">
+            Chronos Calendar
+            <span class="tooltip">(The dial of days)</span>
+        </a>
+        <a href="dateclock.html" class="portal-link">
+            Date Clock
+            <span class="tooltip">(Analog-digital hybrid)</span>
+        </a>
+        <a href="overdrive.html" class="portal-link">
+            Rhythm Overdrive
+            <span class="tooltip">(Can you keep the beat?)</span>
+        </a>
+    </div>
+
+    <div class="marquee-container">
+        <div class="marquee-text">
+            WARNING: Time is barely a suggestion here. Objects in the portal are sillier than they appear. Do not feed
+            the clocks after midnight.
+        </div>
+    </div>
+
+    <script>
+        // Add random slight rotations to particles just for fun
+        const particles = document.querySelectorAll('.particle');
+        particles.forEach(p => {
+            p.style.animationDelay = Math.random() * 5 + 's';
+        });
+
+        // Make the title run away a little bit if you get too close (optional fun)
+        const title = document.querySelector('h1');
+        title.addEventListener('mouseover', () => {
+            const rot = (Math.random() - 0.5) * 20;
+            title.style.transform = `rotate(${rot}deg) scale(1.1)`;
+        });
+        title.addEventListener('mouseout', () => {
+            title.style.transform = ''; // Let the CSS animation take over again
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RHYTHM CLOCK // OVERDRIVE</title>
+
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Orbitron -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #050505;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            color: white;
+        }
+
+        /* Perspective Container */
+        .stage-perspective {
+            perspective: 600px;
+            transform-style: preserve-3d;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 50px;
+            background: radial-gradient(circle at center top, #1a0b2e 0%, #000000 70%);
+        }
+
+        /* The Highway */
+        .highway {
+            transform: rotateX(40deg);
+            width: 800px;
+            height: 120vh;
+            /* Extended height for scrolling effect */
+            position: relative;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(20, 20, 40, 0.8) 100%);
+            border-left: 2px solid rgba(0, 255, 255, 0.3);
+            border-right: 2px solid rgba(0, 255, 255, 0.3);
+            display: flex;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
+        }
+
+        /* Lanes */
+        .lane {
+            flex: 1;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            display: flex;
+            justify-content: center;
+        }
+
+        .lane:last-child {
+            border-right: none;
+        }
+
+        /* Judgment Line */
+        .judgment-line {
+            position: absolute;
+            bottom: 10%;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, #ff00ff, #00ffff);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+            z-index: 20;
+        }
+
+        /* Hit Effect */
+        @keyframes hit-flash {
+            0% {
+                transform: scale(1.5);
+                opacity: 1;
+                filter: brightness(2);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 0;
+                filter: brightness(1);
+            }
+        }
+
+        .hit-effect {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(0, 255, 255, 0) 70%);
+            animation: hit-flash 0.3s ease-out forwards;
+            pointer-events: none;
+            z-index: 30;
+        }
+
+        /* Scrolling Background Grid */
+        .grid-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform-origin: bottom;
+            transform: perspective(500px) rotateX(60deg) translateY(0);
+            animation: grid-scroll 2s linear infinite;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        @keyframes grid-scroll {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: 0 50px;
+            }
+        }
+
+        /* Neon Text Utilities */
+        .neon-blue {
+            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+            color: #e0ffff;
+        }
+
+        .neon-pink {
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff;
+            color: #ffe0ff;
+        }
+
+        .neon-green {
+            text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+            color: #e0ffe0;
+        }
+
+        /* Note Styles */
+        .note {
+            position: absolute;
+            width: 80%;
+            height: 40px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            box-shadow: 0 0 10px currentColor;
+            z-index: 10;
+        }
+
+        .combo-counter {
+            animation: pulse-combo 0.1s ease-in-out;
+        }
+
+        @keyframes pulse-combo {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // --- Icons (SVG Paths) ---
+        const Icons = {
+            Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></svg>,
+            Cloud: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19c0-1.7-1.3-3-3-3h-11C1.6 16 .5 14.1 1.5 12.1c.9-1.9 2.9-2.6 4.7-1.7 1.1-1.8 3.3-2.6 5.3-2 1.2-2 3.8-2.9 5.8-1.9 2.7 1.3 3.6 4.8 2 7.5.5.3 1.1.5 1.7.5 1.7 0 3 1.3 3 3s-1.3 3-3 3h-3.5" /></svg>,
+            Rain: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" /><path d="M16 14v6" /><path d="M8 14v6" /><path d="M12 16v6" /></svg>,
+            Snow: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m10 14 4-4" /><path d="M12 3v21" /><path d="M3 12h18" /><path d="m9.5 7.5-2-2" /><path d="m11.5 2.5-2 2" /><path d="m3 16.5 2-2" /><path d="m5 19.5-2-2" /><path d="m16.5 14.5-2 2" /><path d="m19.5 11.5-2 2" /><path d="m14.5 9.5 2-2" /><path d="m19.5 5 2 2" /></svg>,
+            Lightning: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973" /><path d="m13 12-3 5h4l-3 5" /></svg>,
+            MapPin: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
+        };
+
+        // --- Weather Helpers ---
+        const getWeatherIcon = (code) => {
+            if (code === undefined) return <Icons.Sun />;
+            if (code <= 1) return <Icons.Sun />;
+            if (code <= 3) return <Icons.Cloud />;
+            if (code <= 48) return <Icons.Cloud />;
+            if (code <= 67) return <Icons.Rain />;
+            if (code <= 77) return <Icons.Snow />;
+            if (code <= 86) return <Icons.Rain />;
+            if (code <= 99) return <Icons.Lightning />;
+            return <Icons.Sun />;
+        };
+
+        const getWeatherDescription = (code) => {
+            const map = {
+                0: "CLEAR SKY", 1: "MAINLY CLEAR", 2: "PARTLY CLOUDY", 3: "OVERCAST",
+                45: "FOG", 48: "RIME FOG", 51: "LIGHT DRIZZLE", 53: "DRIZZLE",
+                61: "LIGHT RAIN", 63: "RAIN", 65: "HEAVY RAIN",
+                71: "LIGHT SNOW", 73: "SNOW", 95: "THUNDERSTORM"
+            };
+            return map[code] || "UNKNOWN";
+        };
+
+        // --- Constants ---
+        const TRACK_LENGTH = 1000; // Visual length coordinate space
+        const NOTE_SPEED = 500; // Pixels per second (visual speed)
+
+        // --- Main Component ---
+        function App() {
+            const [now, setNow] = useState(new Date());
+            const [weather, setWeather] = useState(null);
+            const [locationName, setLocationName] = useState("HANOI");
+            const [combo, setCombo] = useState(0);
+            const [judgment, setJudgment] = useState("");
+            const [lastSecond, setLastSecond] = useState(-1);
+            const [hitEffect, setHitEffect] = useState(false);
+
+            // Animation Loop for Clock
+            useEffect(() => {
+                let animationFrameId;
+
+                const tick = () => {
+                    const d = new Date();
+                    setNow(d);
+
+                    const currentSec = d.getSeconds();
+
+                    // Beat Logic
+                    if (currentSec !== lastSecond && lastSecond !== -1) {
+                        setCombo(c => c + 1);
+                        setJudgment(Math.random() > 0.9 ? "MARVELOUS" : "PERFECT");
+                        setHitEffect(true);
+                        setTimeout(() => setHitEffect(false), 200);
+                    }
+                    if (currentSec !== lastSecond) {
+                        setLastSecond(currentSec);
+                    }
+
+                    animationFrameId = requestAnimationFrame(tick);
+                };
+
+                animationFrameId = requestAnimationFrame(tick);
+                return () => cancelAnimationFrame(animationFrameId);
+            }, [lastSecond]);
+
+            // Weather Fetch (Defaults to Hanoi)
+            useEffect(() => {
+                const fetchWeather = async () => {
+                    try {
+                        // Coordinates for Hanoi
+                        const lat = 21.0285;
+                        const lon = 105.8542;
+
+                        const res = await fetch(
+                            `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=temperature_2m_max,temperature_2m_min`
+                        );
+                        const data = await res.json();
+                        setWeather(data);
+                    } catch (e) {
+                        console.error("Weather fetch failed", e);
+                    }
+                };
+
+                fetchWeather();
+                const interval = setInterval(fetchWeather, 900000); // 15 mins
+                return () => clearInterval(interval);
+            }, []);
+
+            // Helper: Deterministic random lane (0-3) based on the second value
+            // This ensures the note for "45" always appears in the same lane for this minute, avoiding jitter during re-renders
+            const getLaneForSecond = (sec) => {
+                return (sec * 7 + Math.floor(sec / 3)) % 4;
+            };
+
+            // Generate Notes
+            // We want to render the notes for the *upcoming* 3 seconds
+            const renderNotes = (laneIndex) => {
+                const currentSec = now.getSeconds();
+                const currentMs = now.getMilliseconds();
+                const timeFraction = currentMs / 1000;
+
+                // Look ahead 4 seconds
+                // We map [1, 2, 3] to see notes coming in the future
+                return [1, 2, 3].map(offset => {
+                    const val = (currentSec + offset) % 60;
+
+                    // Only render if this note belongs to the current lane
+                    if (getLaneForSecond(val) !== laneIndex) return null;
+
+                    const timeToHit = offset - timeFraction; // e.g. 0.5s left
+
+                    // Visual mapping: 
+                    // 90% is the judgment line position.
+                    // 30 is the speed factor.
+                    const positionPercent = 90 - (timeToHit * 30);
+
+                    if (positionPercent < -10 || positionPercent > 110) return null;
+
+                    return (
+                        <div
+                            key={offset}
+                            className="note bg-cyan-500 border-2 border-white neon-blue"
+                            style={{
+                                // Centering logic: Note height is 40px. 
+                                // To align center of note with judgment line at positionPercent, 
+                                // we subtract half height (20px).
+                                top: `calc(${positionPercent}% - 20px)`,
+                                opacity: Math.min(1, positionPercent / 10) // Fade in at top
+                            }}
+                        >
+                            {val.toString().padStart(2, '0')}
+                        </div>
+                    );
+                });
+            };
+
+            // Formatting
+            const formatTime = (unit) => unit.toString().padStart(2, '0');
+            const hours = formatTime(now.getHours());
+            const minutes = formatTime(now.getMinutes());
+            const seconds = formatTime(now.getSeconds());
+
+            return (
+                <div className="w-full h-full relative overflow-hidden">
+                    <div className="grid-bg"></div>
+
+                    {/* HUD Top */}
+                    <div className="absolute top-0 w-full flex justify-between p-8 z-50 pointer-events-none">
+                        <div className="text-left">
+                            <h2 className="text-cyan-400 text-sm tracking-widest mb-1">CURRENT TRACK</h2>
+                            <h1 className="text-4xl font-black italic uppercase neon-blue">
+                                {now.toLocaleDateString('en-US', { weekday: 'long' })}
+                            </h1>
+                            <p className="text-xl text-cyan-200 opacity-80">
+                                {now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                        </div>
+
+                        <div className="text-center transform scale-150 origin-top">
+                            <div className="text-6xl font-black tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">
+                                <span className="text-pink-500">{hours}</span>
+                                <span className="animate-pulse">:</span>
+                                <span className="text-cyan-400">{minutes}</span>
+                            </div>
+                            <div className="text-xs text-center mt-2 tracking-[0.5em] text-gray-400">BPM: 60</div>
+                        </div>
+
+                        <div className="text-right">
+                            <h2 className="text-pink-400 text-sm tracking-widest mb-1">CONDITIONS</h2>
+                            <div className="flex items-center justify-end gap-3">
+                                <div className="text-pink-500 scale-125">
+                                    {weather ? getWeatherIcon(weather.current_weather.weathercode) : <Icons.Sun />}
+                                </div>
+                                <div className="text-2xl font-bold neon-pink">
+                                    {weather ? Math.round(weather.current_weather.temperature) : "--"}°C
+                                </div>
+                            </div>
+                            <p className="text-sm text-pink-200 mt-1 opacity-80 uppercase">
+                                {weather ? getWeatherDescription(weather.current_weather.weathercode) : "LOADING..."}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">{locationName}</p>
+                        </div>
+                    </div>
+
+                    {/* Stage */}
+                    <div className="stage-perspective">
+                        <div className="highway">
+
+                            {/* Lane 1: Hour */}
+                            <div className="lane relative flex-col items-center justify-end pb-32">
+                                <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-end opacity-50 z-0">
+                                    <span className="text-4xl font-bold text-gray-600 mb-4 transform rotateX(-20deg)">HR</span>
+                                    <div className="w-full h-full relative">
+                                        <div className="absolute bottom-[10%] left-0 w-full text-center text-4xl text-gray-500 font-bold">
+                                            {hours}
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Notes Layer */}
+                                {renderNotes(0)}
+                                {hitEffect && getLaneForSecond(now.getSeconds()) === 0 && <div className="hit-effect"></div>}
+                            </div>
+
+                            {/* Lane 2: Minute */}
+                            <div className="lane relative flex-col items-center justify-end pb-32">
+                                <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-end opacity-70 z-0">
+                                    <span className="text-4xl font-bold text-gray-500 mb-4 transform rotateX(-20deg)">MIN</span>
+                                    <div className="w-full h-full relative">
+                                        <div className="absolute bottom-[10%] left-0 w-full text-center text-5xl text-cyan-700 font-bold">
+                                            {minutes}
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Notes Layer */}
+                                {renderNotes(1)}
+                                {hitEffect && getLaneForSecond(now.getSeconds()) === 1 && <div className="hit-effect"></div>}
+                            </div>
+
+                            {/* Lane 3: Seconds (Original Main) */}
+                            <div className="lane relative">
+                                {/* Notes Layer */}
+                                {renderNotes(2)}
+                                {hitEffect && getLaneForSecond(now.getSeconds()) === 2 && <div className="hit-effect"></div>}
+                            </div>
+
+                            {/* Lane 4: Combo/Info */}
+                            <div className="lane relative flex-col items-center justify-end pb-32">
+                                <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-end z-0">
+                                    <div className="absolute bottom-[20%] text-center transform rotateX(-20deg)">
+                                        <div className="text-xs text-green-400 tracking-widest mb-1">COMBO</div>
+                                        <div className={`text-6xl font-black text-green-400 neon-green combo-counter`}>
+                                            {combo}
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Notes Layer */}
+                                {renderNotes(3)}
+                                {hitEffect && getLaneForSecond(now.getSeconds()) === 3 && <div className="hit-effect"></div>}
+                            </div>
+
+                            {/* Judgment Line */}
+                            <div className="judgment-line"></div>
+                        </div>
+                    </div>
+
+                    {/* Center Judgment Text */}
+                    <div className="absolute top-[40%] left-0 w-full text-center pointer-events-none z-40">
+                        <div
+                            key={lastSecond}
+                            className={`text-6xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 transition-all duration-300 ${hitEffect ? 'opacity-100 scale-110' : 'opacity-0 scale-90'}`}
+                            style={{ filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.8))' }}
+                        >
+                            {judgment}
+                        </div>
+                        <div className={`text-xl mt-2 font-bold tracking-[1em] text-cyan-300 transition-opacity duration-300 ${hitEffect ? 'opacity-80' : 'opacity-0'}`}>
+                            {now.getMilliseconds().toString().padStart(3, '0')}
+                        </div>
+                    </div>
+
+                    {/* Footer / Controls */}
+                    <div className="absolute bottom-4 right-4 text-xs text-gray-600 font-mono">
+                        OPEN-METEO // REACT // ORBITRON
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>

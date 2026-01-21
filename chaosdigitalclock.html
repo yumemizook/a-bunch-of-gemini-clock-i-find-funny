@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos Digital Clock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Monoton&family=Rye&display=swap');
+
+        body {
+            transition: background-color 0.5s ease;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Monoton', cursive;
+            perspective: 1000px;
+        }
+
+        .clock-container {
+            display: flex;
+            flex-wrap: wrap;
+            /* No fixed gap, let them overlap */
+            padding: 2rem;
+            border: 5px dashed;
+            transition: all 0.5s ease;
+            width: 80vw;
+            height: 80vh;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .time-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            padding: 1rem;
+            border-radius: 1rem;
+            position: absolute;
+            /* They now float freely within container */
+            box-shadow: 10px 10px 0px rgba(0, 0, 0, 0.5);
+        }
+
+        .value {
+            line-height: 1;
+            transition: font-size 0.5s;
+        }
+
+        .label {
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2rem;
+            background: black;
+            color: white;
+            padding: 0 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="clock-container" id="clockContainer">
+        <div class="time-block" id="block-hr">
+            <span class="value" id="val-hr">00</span>
+            <span class="label" id="lbl-hr">HR</span>
+        </div>
+        <div class="time-block" id="block-min">
+            <span class="value" id="val-min">00</span>
+            <span class="label" id="lbl-min">MIN</span>
+        </div>
+        <div class="time-block" id="block-sec">
+            <span class="value" id="val-sec">00</span>
+            <span class="label" id="lbl-sec">SEC</span>
+        </div>
+    </div>
+
+    <div class="fixed bottom-4 w-full text-center font-mono text-sm bg-black text-white p-2 z-50">
+        Warning: Labels are unreliable. Trust only the numbers.
+    </div>
+
+    <script>
+        const container = document.getElementById('clockContainer');
+        const blockHr = document.getElementById('block-hr');
+        const blockMin = document.getElementById('block-min');
+        const blockSec = document.getElementById('block-sec');
+
+        const valHr = document.getElementById('val-hr');
+        const valMin = document.getElementById('val-min');
+        const valSec = document.getElementById('val-sec');
+
+        const lblHr = document.getElementById('lbl-hr');
+        const lblMin = document.getElementById('lbl-min');
+        const lblSec = document.getElementById('lbl-sec');
+
+        // Random generator helpers
+        const randomColor = () => `hsl(${Math.random() * 360}, 70%, 50%)`;
+        const randomBg = () => `hsl(${Math.random() * 360}, 20%, 10%)`;
+        const randomFont = () => {
+            const fonts = ["'Creepster', cursive", "'Monoton', cursive", "'Rye', serif", "monospace"];
+            return fonts[Math.floor(Math.random() * fonts.length)];
+        };
+        const rand = (min, max) => Math.random() * (max - min) + min;
+
+        function updateTime() {
+            const now = new Date();
+            valHr.innerText = now.getHours().toString().padStart(2, '0');
+            valMin.innerText = now.getMinutes().toString().padStart(2, '0');
+            valSec.innerText = now.getSeconds().toString().padStart(2, '0');
+        }
+
+        function chaosEngine() {
+            // 1. Randomize Colors & Container
+            document.body.style.backgroundColor = randomBg();
+            container.style.borderColor = randomColor();
+            // Container tilt
+            container.style.transform = `rotateX(${rand(-20, 20)}deg) rotateY(${rand(-20, 20)}deg)`;
+
+            // 2. The "Liar" Label Swap
+            // We shuffle the text content of the labels, decoupling them from the data
+            const labelTexts = ["HR", "MIN", "SEC", "???", "NOW", "LATE"];
+            const shuffled = labelTexts.sort(() => 0.5 - Math.random());
+
+            lblHr.innerText = shuffled[0];
+            lblMin.innerText = shuffled[1];
+            lblSec.innerText = shuffled[2];
+
+            // 3. Absolute Chaos Positioning
+            [blockHr, blockMin, blockSec].forEach(block => {
+                // Random position within container (0-80%)
+                block.style.left = `${rand(0, 70)}%`;
+                block.style.top = `${rand(0, 70)}%`;
+
+                // Random Style
+                block.style.backgroundColor = randomColor();
+                block.style.color = Math.random() > 0.5 ? '#000' : '#fff';
+
+                // Random Rotation & Scale
+                block.style.transform = `rotate(${rand(-45, 45)}deg) scale(${rand(0.5, 1.5)})`;
+                block.style.zIndex = Math.floor(rand(1, 10));
+
+                // Random Font for numbers
+                const val = block.querySelector('.value');
+                val.style.fontFamily = randomFont();
+                val.style.fontSize = `${rand(2, 8)}rem`; // Sizes vary wildly
+            });
+        }
+
+        setInterval(updateTime, 100);
+        setInterval(chaosEngine, 1500); // Chaos every 1.5 seconds
+
+        updateTime();
+        chaosEngine();
+    </script>
+</body>
+
+</html>
