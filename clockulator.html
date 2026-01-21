@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Calc FX-PRO ClassWiz</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+
+        :root {
+            /* ClassWiz Palette */
+            --body-bg: #1a1a1a;
+            --body-texture: repeating-linear-gradient(45deg, #222 0, #222 1px, #1a1a1a 0, #1a1a1a 50%);
+            --screen-bg: #f0f4f0;
+            --screen-text: #000;
+
+            /* Keys */
+            --key-white: #fff;
+            --key-text-white: #000;
+            --key-black: #2c2c2c;
+            --key-text-black: #fff;
+            --key-blue: #3b4e8d;
+            --key-orange: #d48806;
+            --key-metal: #666;
+
+            --shadow-key: 0 2px 0 #000;
+            --shadow-key-pressed: 0 1px 0 #000;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #121212;
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            user-select: none;
+        }
+
+        /* --- Casing --- */
+        .calculator {
+            width: 380px;
+            background-color: var(--body-bg);
+            background-image:
+                linear-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+            background-size: 4px 4px;
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow:
+                0 30px 70px rgba(0, 0, 0, 0.6),
+                inset 0 1px 1px rgba(255, 255, 255, 0.1),
+                0 0 0 4px #000;
+            position: relative;
+        }
+
+        .brand-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 0 5px;
+        }
+
+        .brand-text {
+            color: #fff;
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-sub {
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        .solar-panel {
+            width: 90px;
+            height: 24px;
+            background: #111;
+            border-radius: 3px;
+            display: flex;
+            overflow: hidden;
+            border: 1px solid #333;
+            opacity: 0.8;
+        }
+
+        .solar-cell {
+            flex: 1;
+            background: linear-gradient(180deg, #352828 0%, #4a3b3b 100%);
+            border-right: 1px solid #222;
+        }
+
+        /* --- Screen --- */
+        .screen-container {
+            background-color: var(--screen-bg);
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            font-family: 'Roboto Mono', monospace;
+            color: var(--screen-text);
+            position: relative;
+            border: 6px solid #000;
+            height: 100px;
+        }
+
+        .indicators {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            background: #000;
+            color: #fff;
+            margin: -10px -15px 5px -15px;
+            padding: 2px 15px;
+            height: 16px;
+            align-items: center;
+        }
+
+        .mode-badge {
+            background: #fff;
+            color: #000;
+            padding: 0 4px;
+            border-radius: 2px;
+            font-size: 9px;
+            font-weight: bold;
+            opacity: 0.2;
+            /* Dim by default */
+            margin-right: 5px;
+        }
+
+        .mode-badge.visible {
+            opacity: 1;
+            background: #fff;
+            color: #000;
+        }
+
+        /* Special styles for Shift/Alpha indicators */
+        #badge-shift.visible {
+            background: #d48806;
+            color: #fff;
+        }
+
+        #badge-alpha.visible {
+            background: #d9534f;
+            color: #fff;
+        }
+
+        .expression-line {
+            min-height: 24px;
+            text-align: left;
+            font-size: 15px;
+            color: #333;
+            letter-spacing: 0.5px;
+            overflow: hidden;
+            white-space: nowrap;
+            border-bottom: 1px dashed #ccc;
+            margin-bottom: 5px;
+            padding-bottom: 2px;
+        }
+
+        .result-line {
+            min-height: 45px;
+            text-align: right;
+            font-size: 36px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        /* Setup Menu Overlay */
+        .setup-overlay {
+            position: absolute;
+            top: 20px;
+            /* Below indicators */
+            left: 0;
+            width: 100%;
+            height: calc(100% - 20px);
+            background: var(--screen-bg);
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            padding: 5px 10px;
+            box-sizing: border-box;
+            font-size: 11px;
+            overflow-y: auto;
+        }
+
+        .setup-overlay.active {
+            display: flex;
+        }
+
+        .setup-title {
+            background: #000;
+            color: #fff;
+            padding: 2px 5px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .setup-item {
+            padding: 2px 0;
+            border-bottom: 1px solid #ccc;
+            cursor: pointer;
+        }
+
+        .setup-item span {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        /* --- Button Grids --- */
+        .nav-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+
+        .func-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .num-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        /* Button Base */
+        .btn {
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-key);
+            transition: transform 0.05s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            font-family: 'Roboto', sans-serif;
+            padding: 0;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: var(--shadow-key-pressed);
+        }
+
+        /* Shift & Alpha Labels */
+        .btn::before {
+            content: attr(data-shift);
+            position: absolute;
+            top: -10px;
+            left: 0px;
+            width: 100%;
+            text-align: left;
+            font-size: 8px;
+            color: #d48806;
+            font-weight: 600;
+            pointer-events: none;
+        }
+
+        .btn::after {
+            content: attr(data-alpha);
+            position: absolute;
+            top: -10px;
+            right: 0px;
+            width: 100%;
+            text-align: right;
+            font-size: 8px;
+            color: #d9534f;
+            font-weight: 600;
+            pointer-events: none;
+        }
+
+        /* Styles */
+        .btn-metal {
+            background: linear-gradient(180deg, #777 0%, #555 100%);
+            color: #fff;
+            font-size: 10px;
+            border-radius: 12px;
+            height: 28px;
+            flex: 1;
+            font-weight: bold;
+        }
+
+        .btn-metal.mode-btn {
+            background: #333;
+            border: 1px solid #555;
+        }
+
+        .btn-metal.on-btn {
+            background: #222;
+            border: 1px solid #444;
+            color: #aaa;
+        }
+
+        .btn-func {
+            background: var(--key-black);
+            color: var(--key-text-black);
+            font-size: 11px;
+            height: 32px;
+        }
+
+        .btn-num {
+            background: var(--key-white);
+            color: var(--key-text-white);
+            font-size: 18px;
+            font-weight: 600;
+            height: 42px;
+        }
+
+        .btn-op {
+            background: var(--key-blue);
+            color: #fff;
+            font-size: 18px;
+            height: 42px;
+        }
+
+        .btn-del {
+            background: var(--key-orange);
+            color: #fff;
+            font-size: 13px;
+            height: 42px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="calculator">
+        <div class="brand-area">
+            <div>
+                <div class="brand-text">SCIENTIFIC <span style="font-weight:400">fx-PRO</span></div>
+                <div class="brand-sub">WEB EDITION</div>
+            </div>
+            <div class="solar-panel">
+                <div class="solar-cell"></div>
+                <div class="solar-cell"></div>
+                <div class="solar-cell"></div>
+                <div class="solar-cell"></div>
+            </div>
+        </div>
+
+        <div class="screen-container">
+            <div class="indicators">
+                <div style="display:flex;">
+                    <span id="badge-shift" class="mode-badge">S</span>
+                    <span id="badge-alpha" class="mode-badge">A</span>
+                    <span id="badge-mode" class="mode-badge visible">CLOCK</span>
+                    <span id="badge-deg" class="mode-badge visible">D</span>
+                    <span id="badge-rad" class="mode-badge">R</span>
+                    <span id="badge-fix" class="mode-badge">FIX</span>
+                </div>
+                <span id="weather-icon" style="margin-left:auto; font-size: 10px;"></span>
+            </div>
+
+            <!-- Standard Display -->
+            <div id="display-area">
+                <div class="expression-line" id="top-line"></div>
+                <div class="result-line" id="main-line">12:00:00</div>
+            </div>
+
+            <!-- Setup Menu Overlay -->
+            <div id="setup-menu" class="setup-overlay">
+                <div class="setup-title">SETUP MENU</div>
+                <div class="setup-item"><span>1:</span>Input Location</div>
+                <div class="setup-item"><span>2:</span>Time Format (12/24)</div>
+                <div class="setup-item"><span>3:</span>Date Format</div>
+                <div class="setup-item"><span>4:</span>Angle (Deg/Rad)</div>
+                <div class="setup-item"><span>5:</span>Temp Unit (C/F)</div>
+            </div>
+        </div>
+
+        <!-- Navigation Row -->
+        <div class="nav-row">
+            <button class="btn btn-metal" onclick="handleControl('shift')">SHIFT</button>
+            <button class="btn btn-metal" onclick="handleControl('alpha')">ALPHA</button>
+            <button class="btn btn-metal mode-btn" onclick="toggleMode()">MENU</button>
+            <!-- Setup is Shift+Menu, but we can also click it directly if mapped, but standard is Shift+Menu. 
+                 Since this button is labeled SETUP via data-shift (not visible on button text), 
+                 we will handle SETUP via logic or we can make a dedicated button if preferred. 
+                 Wait, user said "Setup button". I'll treat "SETUP" as the shift function of MENU in logic, 
+                 or a direct action if shift is pressed. 
+                 The button below is labeled SETUP on top in image usually. I'll add data-shift. -->
+            <button class="btn btn-metal mode-btn" data-shift="SETUP"
+                onclick="handleControl('setup_btn', this)">ON/OFF</button>
+            <!-- Renaming 'ON' to match Classwiz layout better or using the provided previous layout -->
+            <button class="btn btn-metal on-btn" onclick="handleInput('ON', this)">ON</button>
+        </div>
+
+        <!-- Function Grid -->
+        <div class="func-grid">
+            <!-- Row 1 -->
+            <button class="btn btn-func" onclick="handleScientific('optn', this)">OPTN</button>
+            <button class="btn btn-func" onclick="handleScientific('calc', this)">CALC</button>
+            <button class="btn btn-func" data-shift="int" onclick="handleScientific('integral', this)">∫dx</button>
+            <button class="btn btn-func" data-shift="d/dx" onclick="handleScientific('deriv', this)">∑</button>
+            <!-- Corrected label logic -->
+            <button class="btn btn-func" data-shift="x!" onclick="handleScientific('inv', this)">x⁻¹</button>
+            <button class="btn btn-func" onclick="handleScientific('log', this)">log</button>
+
+            <!-- Row 2 -->
+            <button class="btn btn-func" data-shift="mixed" onclick="handleScientific('frac', this)">⬜/⬜</button>
+            <button class="btn btn-func" data-shift="root3" onclick="handleInput('sqrt', this)">√□</button>
+            <button class="btn btn-func" data-shift="x³" onclick="handleScientific('pow2', this)">x²</button>
+            <button class="btn btn-func" data-shift="root_n" onclick="handleInput('^', this)">xʸ</button>
+            <button class="btn btn-func" data-shift="10^x" onclick="handleScientific('ln', this)">ln</button>
+            <button class="btn btn-func" data-alpha="A" data-shift="fact"
+                onclick="handleInput('(-)', this)">(-)</button>
+
+            <!-- Row 3 -->
+            <button class="btn btn-func" data-alpha="B" onclick="handleScientific('deg', this)">°' "</button>
+            <button class="btn btn-func" data-alpha="C" onclick="handleScientific('hyp', this)">Hyp</button>
+            <button class="btn btn-func" data-alpha="D" data-shift="asin"
+                onclick="handleScientific('sin', this)">sin</button>
+            <button class="btn btn-func" data-alpha="E" data-shift="acos"
+                onclick="handleScientific('cos', this)">cos</button>
+            <button class="btn btn-func" data-alpha="F" data-shift="atan"
+                onclick="handleScientific('tan', this)">tan</button>
+            <button class="btn btn-func" data-shift="sto" onclick="handleScientific('rcl', this)">STO</button>
+
+            <!-- Row 4 -->
+            <button class="btn btn-func" onclick="handleScientific('eng', this)">ENG</button>
+            <button class="btn btn-func" onclick="handleInput('(', this)">(</button>
+            <button class="btn btn-func" data-alpha="X" onclick="handleInput(')', this)">)</button>
+            <button class="btn btn-func" data-alpha="Y" onclick="handleInput('S-D', this)">S⇔D</button>
+            <button class="btn btn-func" data-alpha="M" onclick="handleInput('M+', this)">M+</button>
+            <button class="btn btn-func" onclick="handleInput(',', this)">,</button>
+        </div>
+
+        <!-- Number Grid -->
+        <div class="num-grid">
+            <!-- Row 1 -->
+            <button class="btn btn-num" onclick="handleInput('7', this)">7</button>
+            <button class="btn btn-num" onclick="handleInput('8', this)">8</button>
+            <button class="btn btn-num" onclick="handleInput('9', this)">9</button>
+            <button class="btn btn-del" onclick="handleInput('DEL', this)">DEL</button>
+            <button class="btn btn-del" onclick="handleInput('AC', this)">AC</button>
+
+            <!-- Row 2 -->
+            <button class="btn btn-num" onclick="handleInput('4', this)">4</button>
+            <button class="btn btn-num" onclick="handleInput('5', this)">5</button>
+            <button class="btn btn-num" onclick="handleInput('6', this)">6</button>
+            <button class="btn btn-op" onclick="handleInput('*', this)">×</button>
+            <button class="btn btn-op" onclick="handleInput('/', this)">÷</button>
+
+            <!-- Row 3 -->
+            <button class="btn btn-num" onclick="handleInput('1', this)">1</button>
+            <button class="btn btn-num" onclick="handleInput('2', this)">2</button>
+            <button class="btn btn-num" onclick="handleInput('3', this)">3</button>
+            <button class="btn btn-op" onclick="handleInput('+', this)">+</button>
+            <button class="btn btn-op" onclick="handleInput('-', this)">-</button>
+
+            <!-- Row 4 -->
+            <button class="btn btn-num" onclick="handleInput('0', this)">0</button>
+            <button class="btn btn-num" onclick="handleInput('.', this)">.</button>
+            <button class="btn btn-num" data-shift="pi" data-alpha="e" onclick="handleInput('e10', this)">x10ˣ</button>
+            <button class="btn btn-num" data-shift="ans_prev" onclick="handleInput('ans', this)">Ans</button>
+            <button class="btn btn-op" onclick="calculateResult(this)">=</button>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        const STATE = {
+            mode: 'CLOCK',
+            expression: '',
+            displayValue: '',
+            ans: 0,
+            shift: false,
+            alpha: false,
+            setupOpen: false,
+            config: {
+                location: 'London',
+                time24: true,
+                dateFormatMMDD: false, // false = DD/MM
+                degrees: true,
+                celsius: true
+            }
+        };
+
+        // --- DOM Elements ---
+        const topLine = document.getElementById('top-line');
+        const mainLine = document.getElementById('main-line');
+        const displayArea = document.getElementById('display-area');
+        const setupMenu = document.getElementById('setup-menu');
+
+        const badgeShift = document.getElementById('badge-shift');
+        const badgeAlpha = document.getElementById('badge-alpha');
+        const badgeMode = document.getElementById('badge-mode');
+        const badgeDeg = document.getElementById('badge-deg');
+        const badgeRad = document.getElementById('badge-rad');
+        const weatherIcon = document.getElementById('weather-icon');
+
+        // --- Clock / Weather Logic ---
+        let clockInterval;
+
+        function startClock() {
+            updateClock();
+            clockInterval = setInterval(updateClock, 1000);
+        }
+
+        function stopClock() {
+            clearInterval(clockInterval);
+            topLine.innerText = '';
+            mainLine.innerText = '0';
+        }
+
+        function updateClock() {
+            if (STATE.mode !== 'CLOCK' || STATE.setupOpen) return;
+
+            const now = new Date();
+            let h = now.getHours();
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+
+            // Config: Time Format
+            let timeStr;
+            if (!STATE.config.time24) {
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12;
+                h = h ? h : 12; // the hour '0' should be '12'
+                timeStr = `${h}:${m}:${s} ${ampm}`;
+            } else {
+                timeStr = `${String(h).padStart(2, '0')}:${m}:${s}`;
+            }
+
+            // Reverse Math Base
+            // We use simple integers for math gen to avoid complexity
+            const timeNum = parseInt(`${now.getHours()}${m}${s}`);
+            const equation = generateCalculusClock(timeNum);
+
+            mainLine.innerText = timeStr;
+            topLine.innerText = equation;
+
+            // Config: Date Format
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const dateStr = STATE.config.dateFormatMMDD ? `${month}/${day}` : `${day}/${month}`;
+
+            // Config: Temp & Location
+            const tempVal = STATE.config.celsius ? '24°C' : '75°F';
+
+            weatherIcon.innerText = `${STATE.config.location} ${tempVal} | ${dateStr}`;
+        }
+
+        function generateCalculusClock(target) {
+            try {
+                // Simple Integrals for aesthetics
+                const base = Math.floor(Math.sqrt(target));
+                const remainder = target - (base * base);
+                return `${remainder} + ∫(2x)dx [0,${base}]`;
+            } catch (e) { return target; }
+        }
+
+        // --- Setup Menu Logic ---
+
+        function toggleSetup() {
+            STATE.setupOpen = !STATE.setupOpen;
+            if (STATE.setupOpen) {
+                // Open Setup
+                displayArea.style.display = 'none';
+                setupMenu.classList.add('active');
+                STATE.shift = false; // Reset shift
+                updateIndicators();
+            } else {
+                // Close Setup
+                displayArea.style.display = 'block';
+                setupMenu.classList.remove('active');
+                updateDisplay(); // Refresh calc/clock view
+            }
+        }
+
+        function handleSetupInput(key) {
+            // Handles 1-5 inputs when setup is open
+            switch (key) {
+                case '1': // Location
+                    const newLoc = prompt("Enter City Name:", STATE.config.location);
+                    if (newLoc) STATE.config.location = newLoc.substring(0, 10);
+                    break;
+                case '2': // Time Format
+                    STATE.config.time24 = !STATE.config.time24;
+                    alert(`Time Format: ${STATE.config.time24 ? '24H' : '12H'}`);
+                    break;
+                case '3': // Date Format
+                    STATE.config.dateFormatMMDD = !STATE.config.dateFormatMMDD;
+                    alert(`Date Format: ${STATE.config.dateFormatMMDD ? 'MM/DD' : 'DD/MM'}`);
+                    break;
+                case '4': // Angle
+                    STATE.config.degrees = !STATE.config.degrees;
+                    STATE.isDegrees = STATE.config.degrees; // Sync calc state
+                    updateIndicators();
+                    alert(`Angle Unit: ${STATE.config.degrees ? 'Degree' : 'Radian'}`);
+                    break;
+                case '5': // Temp
+                    STATE.config.celsius = !STATE.config.celsius;
+                    alert(`Temperature: ${STATE.config.celsius ? 'Celsius' : 'Fahrenheit'}`);
+                    break;
+            }
+            // Close menu after selection (Casio style usually stays open, but simpler here)
+            toggleSetup();
+        }
+
+        // --- Core Control Logic ---
+
+        function updateIndicators() {
+            if (STATE.shift) badgeShift.classList.add('visible');
+            else badgeShift.classList.remove('visible');
+
+            if (STATE.alpha) badgeAlpha.classList.add('visible');
+            else badgeAlpha.classList.remove('visible');
+
+            if (STATE.config.degrees) {
+                badgeDeg.classList.add('visible');
+                badgeRad.classList.remove('visible');
+            } else {
+                badgeDeg.classList.remove('visible');
+                badgeRad.classList.add('visible');
+            }
+
+            badgeMode.innerText = STATE.mode;
+        }
+
+        function handleControl(type, el) {
+            if (type === 'shift') {
+                STATE.shift = !STATE.shift;
+                STATE.alpha = false; // Exclusive
+            } else if (type === 'alpha') {
+                STATE.alpha = !STATE.alpha;
+                STATE.shift = false; // Exclusive
+            } else if (type === 'setup_btn') {
+                // Button labeled ON/OFF usually.
+                // If Shift is active -> SETUP
+                if (STATE.shift) {
+                    toggleSetup();
+                    return;
+                }
+                // Else -> Power Off logic (simulated by clearing screen)
+                resetCalc();
+                topLine.innerText = "";
+                mainLine.innerText = "";
+            }
+
+            updateIndicators();
+        }
+
+        function toggleMode() {
+            if (STATE.shift) {
+                toggleSetup();
+                return;
+            }
+
+            if (STATE.mode === 'CLOCK') {
+                STATE.mode = 'CALC';
+                stopClock();
+                resetCalc();
+            } else {
+                STATE.mode = 'CLOCK';
+                startClock();
+            }
+            updateIndicators();
+        }
+
+        // --- Input Handling ---
+
+        // Generic processor to check modifiers
+        function processModifiers(el, defaultAction) {
+            if (STATE.setupOpen) {
+                // If setup is open, we only care about number keys or Menu/AC to exit
+                if (defaultAction >= '1' && defaultAction <= '5') {
+                    handleSetupInput(defaultAction);
+                    return null; // Handled
+                }
+                if (defaultAction === 'AC' || defaultAction === 'ON') {
+                    toggleSetup();
+                    return null;
+                }
+                return null; // Ignore others
+            }
+
+            let action = defaultAction;
+
+            // Check Shift
+            if (STATE.shift && el && el.getAttribute('data-shift')) {
+                action = el.getAttribute('data-shift');
+                STATE.shift = false;
+                updateIndicators();
+            }
+            // Check Alpha
+            else if (STATE.alpha && el && el.getAttribute('data-alpha')) {
+                action = el.getAttribute('data-alpha');
+                STATE.alpha = false;
+                updateIndicators();
+            }
+
+            return action;
+        }
+
+        function handleInput(val, el) {
+            const action = processModifiers(el, val);
+            if (!action) return;
+
+            if (STATE.mode === 'CLOCK' && action !== 'ON' && action !== 'AC') {
+                // Wake up on keypress?
+                toggleMode();
+                return;
+            }
+
+            if (action === 'AC') { resetCalc(); return; }
+            if (action === 'DEL') {
+                STATE.expression = STATE.expression.toString().slice(0, -1);
+                STATE.displayValue = STATE.expression || '0';
+                updateDisplay();
+                return;
+            }
+
+            // Mapping special actions derived from Shift
+            if (action === 'pi') STATE.expression += Math.PI;
+            else if (action === 'e') STATE.expression += Math.E;
+            else if (action === 'fact') STATE.expression += 'fact(';
+            else if (action === 'root3') STATE.expression += 'cbrt(';
+            else if (action === 'ans_prev') STATE.expression += STATE.ans;
+            else STATE.expression += action;
+
+            STATE.displayValue = STATE.expression;
+            updateDisplay();
+        }
+
+        function handleScientific(func, el) {
+            const action = processModifiers(el, func);
+            if (!action) return;
+
+            if (STATE.mode !== 'CALC') toggleMode();
+
+            // Special Shift Actions mapped
+            if (action === 'asin') STATE.expression += 'asin(';
+            else if (action === 'acos') STATE.expression += 'acos(';
+            else if (action === 'atan') STATE.expression += 'atan(';
+            else if (action === 'int') STATE.expression += 'int(';
+            else if (action === 'd/dx') STATE.expression += 'deriv(';
+            else if (action === '10^x') STATE.expression += '10^(';
+            else if (action === 'x!') STATE.expression += 'fact(';
+            else if (action === 'root_n') STATE.expression += '^(1/';
+            else if (action === 'mixed') STATE.expression += 'mixed('; // stub
+            else if (action.length === 1 && action.match(/[A-Z]/)) {
+                // Alpha variables A, B, C...
+                STATE.expression += action;
+            }
+            else STATE.expression += `${action}(`;
+
+            STATE.displayValue = STATE.expression;
+            updateDisplay();
+        }
+
+        function calculateResult() {
+            if (STATE.mode !== 'CALC') return;
+            let evalString = STATE.expression;
+
+            // Visual cleanups
+            evalString = evalString.replace(/×/g, '*').replace(/÷/g, '/').replace(/\^/g, '**');
+
+            // Map standard math
+            evalString = evalString.replace(/sin\(/g, 'Math.sin(');
+            evalString = evalString.replace(/cos\(/g, 'Math.cos(');
+            evalString = evalString.replace(/tan\(/g, 'Math.tan(');
+            evalString = evalString.replace(/asin\(/g, 'Math.asin(');
+            evalString = evalString.replace(/acos\(/g, 'Math.acos(');
+            evalString = evalString.replace(/atan\(/g, 'Math.atan(');
+            evalString = evalString.replace(/log\(/g, 'Math.log10(');
+            evalString = evalString.replace(/ln\(/g, 'Math.log(');
+            evalString = evalString.replace(/sqrt\(/g, 'Math.sqrt(');
+            evalString = evalString.replace(/cbrt\(/g, 'Math.cbrt(');
+            evalString = evalString.replace(/fact\(/g, 'factorial(');
+
+            try {
+                const result = safeEval(evalString);
+                let final = parseFloat(result.toPrecision(10));
+
+                if (isNaN(final)) throw new Error("NaN");
+
+                topLine.innerText = STATE.expression + ' =';
+                mainLine.innerText = final;
+
+                STATE.ans = final;
+                STATE.expression = String(final);
+            } catch (e) {
+                mainLine.innerText = 'Syntax Error';
+            }
+        }
+
+        function safeEval(str) {
+            const factorial = (n) => {
+                if (n < 0) return NaN;
+                if (Math.floor(n) !== n) return NaN;
+                if (n === 0 || n === 1) return 1;
+                let r = 1;
+                for (let i = 2; i <= n; i++) r *= i;
+                return r;
+            };
+            const inv = (n) => 1 / n;
+
+            // Deg/Rad Logic for TRIG
+            const toRad = (x) => STATE.config.degrees ? x * Math.PI / 180 : x;
+
+            const sin = (x) => Math.sin(toRad(x));
+            const cos = (x) => Math.cos(toRad(x));
+            const tan = (x) => Math.tan(toRad(x));
+
+            // For Arc functions, result needs to be converted back to Deg if mode is Deg
+            const toDeg = (x) => STATE.config.degrees ? x * 180 / Math.PI : x;
+
+            const asin = (x) => toDeg(Math.asin(x));
+            const acos = (x) => toDeg(Math.acos(x));
+            const atan = (x) => toDeg(Math.atan(x));
+
+            // Fix string replacement for overrides
+            str = str.replace(/Math.sin/g, 'sin');
+            str = str.replace(/Math.cos/g, 'cos');
+            str = str.replace(/Math.tan/g, 'tan');
+            str = str.replace(/Math.asin/g, 'asin');
+            str = str.replace(/Math.acos/g, 'acos');
+            str = str.replace(/Math.atan/g, 'atan');
+
+            const func = new Function(
+                'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'factorial', 'inv',
+                'return ' + str
+            );
+            return func(sin, cos, tan, asin, acos, atan, factorial, inv);
+        }
+
+        function resetCalc() {
+            STATE.expression = '';
+            STATE.displayValue = '0';
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            if (STATE.setupOpen) return;
+            mainLine.innerText = STATE.displayValue;
+            topLine.innerText = '';
+        }
+
+        // Init
+        startClock(); 
+    </script>
+</body>
+
+</html>

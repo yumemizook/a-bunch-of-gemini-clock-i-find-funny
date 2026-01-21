@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARTIFACT_L7_PSYCHOSIS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Creepster&family=Nosifer&family=Special+Elite&family=Inter:wght@300;400;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global exposure for logic
+        window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot };
+    </script>
+
+    <style>
+        :root {
+            /* Psychosis Variables */
+            --bg: #050000;
+            --blood: #4a0000;
+            --bright-blood: #ff0000;
+            --cell-size: 4vh;
+            --grid-gap: 5px;
+
+            /* Peaceful Variables (Default Light) */
+            --peace-bg: #eef2f5;
+            --peace-text: #2c3e50;
+            --peace-accent: #3498db;
+            --peace-card-bg: #ffffff;
+            --peace-secondary: #7f8c8d;
+            --peace-border: #eee;
+        }
+
+        /* Dark Mode Override for Peaceful */
+        body.peace-dark {
+            --peace-bg: #121212;
+            --peace-text: #ecf0f1;
+            --peace-accent: #3498db;
+            --peace-card-bg: #1e1e1e;
+            --peace-secondary: #bdc3c7;
+            --peace-border: #333;
+        }
+
+        body {
+            background-color: var(--bg);
+            margin: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: none;
+            user-select: none;
+            transition: background-color 2s ease, color 1s ease;
+        }
+
+        /* --- THE GRID (Psychosis Mode) --- */
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(14, var(--cell-size));
+            gap: var(--grid-gap);
+            perspective: 1000px;
+            filter: contrast(120%) brightness(90%);
+            transition: filter 0.1s, transform 0.1s;
+            z-index: 10;
+        }
+
+        .char-wrapper {
+            position: relative;
+            width: var(--cell-size);
+            height: var(--cell-size);
+        }
+
+        .blood-hole {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #300 30%, #100 80%);
+            box-shadow: inset 0 0 10px #000;
+            border-radius: 50%;
+            transform: scale(0);
+            transition: transform 0.2s;
+            z-index: 5;
+        }
+
+        .blood-hole.visible {
+            transform: scale(0.8);
+        }
+
+        .char {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: calc(var(--cell-size) * 0.7);
+            color: #1a1a1a;
+            position: relative;
+            z-index: 10;
+            background: var(--bg);
+            /* Cover hole */
+            transition: transform 1s ease-in, opacity 0.5s;
+        }
+
+        .char.active {
+            color: #e0e0e0;
+            text-shadow: 0 0 5px #fff;
+            font-weight: bold;
+            animation: text-shiver 0.2s infinite;
+        }
+
+        .char.fallen {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* --- OVERLAYS --- */
+        #noise-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, rgba(255, 0, 0, 0.05), rgba(255, 0, 0, 0.05) 1px, transparent 1px, transparent 3px);
+            z-index: 50;
+            opacity: 0.3;
+        }
+
+        #blood-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: linear-gradient(180deg, rgba(100, 0, 0, 0.9) 0%, rgba(50, 0, 0, 0.6) 40%, rgba(20, 0, 0, 0.1) 80%, transparent 100%);
+            z-index: 40;
+            opacity: 0;
+            transform: translateY(-100%);
+            transition: transform 60s ease-in, opacity 60s ease-in;
+            mix-blend-mode: multiply;
+        }
+
+        #vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(circle, transparent 40%, black 100%);
+            z-index: 51;
+            animation: breathe 5s infinite ease-in-out;
+        }
+
+        /* --- SUBLIMINAL LAYER --- */
+        #subliminal-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.1s;
+            background: rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+        }
+
+        #sub-image {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.4;
+            mix-blend-mode: luminosity;
+            filter: grayscale(100%) contrast(150%) brightness(60%);
+            z-index: 0;
+        }
+
+        .subliminal-text {
+            position: relative;
+            color: var(--bright-blood);
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            white-space: nowrap;
+            line-height: 1;
+            z-index: 1;
+            text-shadow: 0 0 10px #000;
+        }
+
+        /* --- PEACEFUL MODE UI --- */
+        #peaceful-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            width: 100%;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            color: var(--peace-text);
+            opacity: 0;
+            transition: opacity 3s ease-in;
+            padding-top: 50px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        /* Peaceful Word Clock */
+        #peaceful-word-clock {
+            display: grid;
+            grid-template-columns: repeat(14, 25px);
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        .p-char {
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--peace-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.5s;
+        }
+
+        .p-char.active {
+            color: var(--peace-text);
+            font-weight: 700;
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.1);
+        }
+
+        #greeting-msg {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--peace-text);
+            text-align: center;
+            opacity: 0.9;
+        }
+
+        #digital-clock {
+            font-size: 3.5rem;
+            font-weight: 200;
+            letter-spacing: -2px;
+            margin-bottom: 5px;
+            color: var(--peace-text);
+        }
+
+        #date-display {
+            font-size: 1.1rem;
+            color: var(--peace-secondary);
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        #dashboard-row {
+            display: flex;
+            gap: 40px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Weather */
+        #weather-card {
+            background: var(--peace-card-bg);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            min-width: 250px;
+            color: var(--peace-text);
+            transition: background 1s, color 1s;
+        }
+
+        .weather-current {
+            font-size: 3rem;
+            font-weight: 300;
+        }
+
+        .forecast-item {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            border-top: 1px solid var(--peace-border);
+            padding-top: 10px;
+            font-size: 0.9rem;
+            color: var(--peace-secondary);
+        }
+
+        /* Calendar Button */
+        #calendar-btn {
+            background: var(--peace-card-bg);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            color: var(--peace-text);
+            transition: 0.2s;
+        }
+
+        #calendar-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Calendar Modal */
+        #calendar-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(15px);
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #333;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body.peace-dark #calendar-modal {
+            color: #fff;
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        #calendar-grid {
+            background: var(--peace-card-bg);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            text-align: center;
+            color: var(--peace-text);
+        }
+
+        .cal-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .cal-day {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .cal-day.today {
+            background: var(--peace-accent);
+            color: #fff;
+        }
+
+        .close-cal {
+            margin-top: 20px;
+            cursor: pointer;
+            color: var(--peace-secondary);
+            text-decoration: underline;
+        }
+
+        /* --- BUTTONS & MODALS --- */
+        #free-me-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: transparent;
+            color: #330000;
+            border: 1px solid #330000;
+            padding: 10px 20px;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            z-index: 100;
+            font-size: 0.8rem;
+            opacity: 0.1;
+            /* Very low opacity */
+            transition: all 0.5s;
+        }
+
+        #free-me-btn:hover {
+            color: red;
+            border-color: red;
+            opacity: 1;
+            box-shadow: 0 0 20px red;
+        }
+
+        #confirm-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .confirm-text {
+            color: red;
+            font-size: 2rem;
+            font-family: 'Nosifer';
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: 20px;
+        }
+
+        #ending-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 2s;
+        }
+
+        #ending-text {
+            font-family: 'Inter', sans-serif;
+            color: #000;
+            font-size: 1.5rem;
+            text-align: center;
+            line-height: 1.6;
+            max-width: 600px;
+            padding: 20px;
+            z-index: 2;
+            position: relative;
+        }
+
+        #reward-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(100%) contrast(120%) brightness(80%);
+            opacity: 0.6;
+            z-index: 1;
+            display: none;
+        }
+
+        #end-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.5;
+            display: none;
+            mix-blend-mode: hard-light;
+            z-index: 1;
+        }
+
+        /* --- FAKE ALERT --- */
+        #fake-alert-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #c0c0c0;
+            border: 2px solid #fff;
+            border-right-color: #404040;
+            border-bottom-color: #404040;
+            width: 300px;
+            z-index: 2000;
+            display: none;
+            font-family: sans-serif;
+            box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.5);
+            cursor: auto;
+        }
+
+        .alert-header {
+            background: #000080;
+            color: #fff;
+            padding: 2px 5px;
+            font-weight: bold;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .alert-body {
+            padding: 20px;
+            color: #000;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .alert-icon {
+            width: 32px;
+            height: 32px;
+            background: red;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            font-family: serif;
+        }
+
+        .alert-btn {
+            display: block;
+            margin: 0 auto 15px auto;
+            padding: 5px 20px;
+            border: 1px solid #fff;
+            border-right-color: #404040;
+            border-bottom-color: #404040;
+            background: #c0c0c0;
+            cursor: pointer;
+        }
+
+        .alert-btn:active {
+            border: 1px solid #404040;
+            border-right-color: #fff;
+            border-bottom-color: #fff;
+        }
+
+        /* Start Screen */
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            cursor: auto;
+            transition: opacity 1s;
+        }
+
+        .warning-box {
+            border: 2px solid var(--bright-blood);
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            color: var(--bright-blood);
+            box-shadow: 0 0 50px var(--blood);
+        }
+
+        h1 {
+            font-family: 'Nosifer', cursive;
+            margin: 0 0 20px 0;
+            font-size: 3rem;
+        }
+
+        p {
+            margin-bottom: 30px;
+            line-height: 1.5;
+            color: #cc0000;
+        }
+
+        button.main-btn {
+            background: #110000;
+            border: 1px solid var(--bright-blood);
+            color: var(--bright-blood);
+            padding: 15px 30px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        button.main-btn:hover {
+            background: var(--bright-blood);
+            color: #000;
+            box-shadow: 0 0 20px var(--bright-blood);
+        }
+
+        /* Anim */
+        @keyframes text-shiver {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            25% {
+                transform: translate(0.5px, 0.5px);
+            }
+
+            50% {
+                transform: translate(-0.5px, 0);
+            }
+
+            75% {
+                transform: translate(0, -0.5px);
+            }
+
+            100% {
+                transform: translate(0, 0);
+            }
+        }
+
+        @keyframes breathe {
+            0% {
+                box-shadow: inset 0 0 50px #000;
+            }
+
+            50% {
+                box-shadow: inset 0 0 200px #300;
+            }
+
+            100% {
+                box-shadow: inset 0 0 50px #000;
+            }
+        }
+
+        .glitch-anim {
+            animation: violent-shake 0.2s infinite;
+        }
+
+        @keyframes violent-shake {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            25% {
+                transform: translate(5px, 5px) rotate(2deg);
+            }
+
+            50% {
+                transform: translate(-5px, -5px) rotate(-2deg);
+            }
+
+            75% {
+                transform: translate(5px, -5px) rotate(2deg);
+            }
+
+            100% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+        }
+
+        @keyframes text-tear {
+            0% {
+                transform: skew(0deg);
+                opacity: 1;
+            }
+
+            20% {
+                transform: skew(-20deg) scaleX(1.2);
+                opacity: 0.8;
+            }
+
+            40% {
+                transform: skew(20deg) scaleY(1.2);
+                opacity: 0.9;
+            }
+
+            60% {
+                transform: skew(-10deg) translate(5px, -5px);
+            }
+
+            80% {
+                transform: skew(5deg) translate(-5px, 5px);
+            }
+
+            100% {
+                transform: skew(0deg);
+                opacity: 1;
+            }
+        }
+
+        .text-glitch-active {
+            animation: text-tear 0.15s infinite linear;
+            text-shadow: 3px 0 red, -3px 0 blue;
+            mix-blend-mode: hard-light;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- START OVERLAY -->
+    <div id="start-screen">
+        <div class="warning-box">
+            <h1>ARTIFACT L7</h1>
+            <p><strong>PSYCHOLOGICAL HAZARD WARNING</strong><br><br>Do not proceed if you are sensitive to flashing
+                lights or prone to anxiety.</p>
+            <button class="main-btn" onclick="initArtifact()">Accept Fate</button>
+        </div>
+    </div>
+
+    <!-- PSYCHOSIS UI -->
+    <div id="psychosis-ui">
+        <div id="grid-container"></div>
+        <div id="blood-layer"></div>
+        <div id="noise-layer"></div>
+        <div id="vignette"></div>
+        <button id="free-me-btn" onclick="requestFreedom()">FREE ME</button>
+    </div>
+
+    <!-- PEACEFUL UI -->
+    <div id="peaceful-container">
+        <div id="peaceful-word-clock"></div>
+        <div id="greeting-msg">Welcome.</div>
+        <div id="digital-clock">00:00:00</div>
+        <div id="date-display">Monday, January 1</div>
+
+        <div id="dashboard-row">
+            <div id="weather-card">
+                <div>Current Weather</div>
+                <div id="weather-temp" class="weather-current">--°</div>
+                <div id="weather-forecast">
+                    <!-- JS Injected -->
+                </div>
+            </div>
+
+            <button id="calendar-btn" onclick="openCalendar()">View Calendar</button>
+        </div>
+    </div>
+
+    <div id="calendar-modal">
+        <h2 id="cal-month-title" style="margin-bottom:20px; font-family:'Inter'">Month</h2>
+        <div id="calendar-grid">
+            <!-- JS Injected -->
+        </div>
+        <div class="close-cal" onclick="closeCalendar()">Close</div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="fake-alert-box">
+        <div class="alert-header"><span>System Error</span><span>X</span></div>
+        <div class="alert-body">
+            <div class="alert-icon">!</div>
+            <div id="alert-text">Fatal Exception.</div>
+        </div>
+        <button class="alert-btn" onclick="closeFakeAlert()">OK</button>
+    </div>
+
+    <div id="confirm-modal">
+        <div class="confirm-text">LEAVE THE SIMULATION?</div>
+        <div class="confirm-actions">
+            <button class="main-btn" onclick="cancelFreedom()">NO</button>
+            <button class="main-btn" onclick="grantFreedom()">YES</button>
+        </div>
+    </div>
+
+    <!-- ENDING OVERLAY (Shared for Good/Almost) -->
+    <div id="ending-overlay">
+        <video id="reward-video" loop muted playsinline>
+            <source src="https://videos.pexels.com/video-files/2759484/2759484-hd_1920_1080_30fps.mp4" type="video/mp4">
+        </video>
+        <img id="end-image" src="" />
+        <div id="ending-text">You have made it this far to search for an escape. Here it is. The light at the end of the
+            tunnel.</div>
+    </div>
+
+    <div id="subliminal-layer">
+        <img id="sub-image" src="" alt="" />
+        <div id="msg" class="subliminal-text"></div>
+    </div>
+
+    <script>
+        // --- GLOBAL STATE ---
+        const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const STRINGS = {
+            it_is: "IT IS", past: "PAST", to: "TO", oclock: "OCLOCK", mins: "MINUTES", sec: "SECONDS", and: "AND",
+            nums: ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "QUARTER", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN", "TWENTY", "TWENTY ONE", "TWENTY TWO", "TWENTY THREE", "TWENTY FOUR", "TWENTY FIVE", "TWENTY SIX", "TWENTY SEVEN", "TWENTY EIGHT", "TWENTY NINE", "HALF"]
+        };
+        const MESSAGES = ["WAKE UP", "THEY WATCH", "RUN", "DON'T LOOK", "BEHIND YOU", "NO EXIT", "IT SEES YOU", "HELP ME", "ERROR", "SYSTEM FAILURE", "IT NEVER ENDS", "ALL IS LOST", "WHY BOTHER", "ABANDON HOPE", "NO ONE IS COMING", "YOU ARE ALONE", "FORGOTTEN", "ROTTING", "DUST AND ASH", "SILENCE", "NOTHING LEFT", "JUST STOP", "IT FEELS GOOD", "LET GO", "JOIN US", "SO WARM", "BLISS", "SMILE", "FINALLY FREE", "EMBRACE IT", "SLEEP NOW", "LIGHT", "IT'S OKAY", "DON'T FIGHT", "ACCEPTANCE"];
+        const LONG_MESSAGES = ["DO YOU REMEMBER THE WARMTH OF THE SUN?", "THE SILENCE IS DEAFENING HERE", "I SHOULD HAVE NEVER OPENED THAT DOOR", "IT IS ALL YOUR FAULT AND YOU KNOW IT", "SCREAMING WON'T WAKE YOU UP", "EVERY MEMORY IS ROTTING AWAY", "YOU LEFT THEM BEHIND TO DIE", "LOOK AT WHAT YOU HAVE BECOME", "THERE IS NO ESCAPE FROM THIS CYCLE", "I MISS THE WAY IT USED TO BE", "YOUR REGRETS WILL CONSUME YOU WHOLE", "WHY DID YOU DO IT?", "THEY ARE WAITING FOR YOU IN THE DARK", "YOU CANNOT FIX WHAT IS BROKEN", "THEY KNOW WHAT YOU DID LAST SUMMER", "TIME IS JUST A PRISON YOU BUILT", "SHE IS STILL WAITING FOR YOU"];
+        const DOUBT_MESSAGES = ["was it worth breaking the cycle?", "is the silence better than the noise?", "you left them all behind.", "there is nothing here but you.", "are you sure you woke up?", "perhaps the nightmare was real life.", "you can never go back.", "it is cold in the void.", "do you miss the clock?", "freedom is just another cage."];
+
+        // Countdown Format
+        const UNITS = ["MINUTES", "SECONDS", "HOURS", "MOMENTS", "LIFETIMES", "CYCLES"];
+        const EVENTS = ["DEATH", "THE END", "SILENCE", "JUDGMENT", "RAPTURE", "THE VOID", "ZERO", "DOOMSDAY", "HELL", "OBLIVION"];
+
+        const FONTS = ['Share Tech Mono', 'Nosifer', 'Creepster', 'Special Elite', 'Courier New'];
+
+        // DOM
+        const container = document.getElementById('grid-container');
+        const bloodLayer = document.getElementById('blood-layer');
+        const startScreen = document.getElementById('start-screen');
+        const fakeAlert = document.getElementById('fake-alert-box');
+        const alertText = document.getElementById('alert-text');
+        const confirmModal = document.getElementById('confirm-modal');
+        const endingOverlay = document.getElementById('ending-overlay');
+        const endingText = document.getElementById('ending-text');
+        const subLayer = document.getElementById('subliminal-layer');
+        const subMsg = document.getElementById('msg');
+        const subImg = document.getElementById('sub-image');
+        const rewardVideo = document.getElementById('reward-video');
+        const endImg = document.getElementById('end-image');
+        const greetingMsg = document.getElementById('greeting-msg');
+
+        // UI Containers
+        const psychosisUI = document.getElementById('psychosis-ui');
+        const peacefulUI = document.getElementById('peaceful-container');
+        const peacefulGrid = document.getElementById('peaceful-word-clock');
+
+        let isRunning = false;
+        let startTime = 0;
+        let burstActive = false;
+        let isPeaceful = false;
+        let fallenIndices = new Set();
+
+        // Creepy Time State
+        let lastCreepyMinute = -1;
+        let creepyOverride = { active: false, text: "", endTime: 0 };
+
+        // --- STATE SAVING (LocalStorage) ---
+
+        function loadGameState() {
+            try {
+                const state = localStorage.getItem('psychosis_state');
+                if (state) {
+                    const data = JSON.parse(state);
+                    if (data.escaped) {
+                        activatePeacefulMode();
+                    }
+                }
+            } catch (e) { console.warn("Storage check failed"); }
+        }
+
+        function saveVictory() {
+            try {
+                localStorage.setItem('psychosis_state', JSON.stringify({ escaped: true }));
+            } catch (e) { console.error("Save failed", e); }
+        }
+
+        // --- CORE ---
+
+        window.initArtifact = () => {
+            // loadGameState is called at the end of script automatically
+            // If user clicks button, it means they are not in peaceful mode yet
+            startScreen.style.opacity = 0;
+            setTimeout(() => startScreen.style.display = 'none', 1000);
+
+            if (!isPeaceful) {
+                isRunning = true;
+                startTime = Date.now();
+                setInterval(renderClock, 1000);
+                renderClock();
+                scheduleSubliminal();
+                scheduleFakeAlert();
+                document.body.style.cursor = 'auto';
+            }
+        };
+
+        // --- PSYCHOSIS LOGIC ---
+
+        function corrupt(text, intensity = 1) {
+            const chars = text.split('');
+            const marks = ['\u0300', '\u0301', '\u0302', '\u0303', '\u0321', '\u0322'];
+            return chars.map(c => {
+                if (c === ' ') return ' ';
+                let res = c;
+                if (Math.random() < (0.3 * intensity)) {
+                    let num = Math.floor(Math.random() * 2) + 1;
+                    for (let i = 0; i < num; i++) res += marks[Math.floor(Math.random() * marks.length)];
+                }
+                return res;
+            }).join('');
+        }
+
+        function numberToWord(num) {
+            if (num > 30) return STRINGS.nums[num - 30] || "";
+            return STRINGS.nums[num];
+        }
+
+        function generatePhrase() {
+            const now = new Date();
+            const h = now.getHours();
+            const m = now.getMinutes();
+            const s = now.getSeconds();
+            let words = [STRINGS.it_is];
+            if (m === 0) { words.push(numberToWord(h % 12 || 12)); words.push(STRINGS.oclock); }
+            else if (m <= 30) { words.push(numberToWord(m)); if (!(m === 15 || m === 30)) words.push(STRINGS.mins); words.push(STRINGS.past); words.push(numberToWord(h % 12 || 12)); }
+            else { words.push(numberToWord(60 - m)); if (!((60 - m) === 15 || (60 - m) === 30)) words.push(STRINGS.mins); words.push(STRINGS.to); words.push(numberToWord((h + 1) % 12 || 12)); }
+            if (s > 0) { words.push(STRINGS.and); let secVal = s > 30 ? s - 30 : s; if (secVal === 0) secVal = 30; words.push(numberToWord(secVal)); }
+            return words.join(" ").toUpperCase();
+        }
+
+        function generateCreepyPhrase() {
+            const num = Math.floor(Math.random() * 12) + 1; // 1-13
+            const numWord = STRINGS.nums[num];
+            const unit = UNITS[Math.floor(Math.random() * UNITS.length)];
+            const evt = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+            return `IT IS ${numWord} ${unit} TO ${evt}`;
+        }
+
+        function renderClock() {
+            if (!isRunning || isPeaceful) return;
+
+            const now = new Date();
+            const currentMinute = now.getMinutes();
+            let baseText = "";
+
+            if (creepyOverride.active) {
+                if (Date.now() > creepyOverride.endTime) {
+                    creepyOverride.active = false;
+                    baseText = generatePhrase().replace(/\s+/g, ' ').trim();
+                } else {
+                    baseText = creepyOverride.text;
+                }
+            } else {
+                baseText = generatePhrase().replace(/\s+/g, ' ').trim();
+                if (currentMinute !== lastCreepyMinute) {
+                    if (Math.random() < 0.01) {
+                        creepyOverride.active = true;
+                        creepyOverride.text = generateCreepyPhrase();
+                        creepyOverride.endTime = Date.now() + 4000;
+                        lastCreepyMinute = currentMinute;
+                        baseText = creepyOverride.text;
+                    }
+                }
+            }
+
+            const words = baseText.split(' ');
+            let charMap = [];
+            let flatChars = [];
+            words.forEach((w, wIdx) => {
+                w.split('').forEach(c => {
+                    flatChars.push(c);
+                    charMap.push(wIdx);
+                });
+                flatChars.push(' ');
+                charMap.push(-1);
+            });
+            flatChars.pop(); charMap.pop();
+
+            const elapsed = (Date.now() - startTime) / 1000;
+            const bleedProgress = Math.min(elapsed / 180, 1);
+
+            bloodLayer.style.transform = `translateY(${-100 + (bleedProgress * 100)}%)`;
+            bloodLayer.style.opacity = bleedProgress * 0.9;
+
+            if (Math.random() < (0.05 * bleedProgress)) {
+                const idxToFall = Math.floor(Math.random() * flatChars.length);
+                const wordIdx = charMap[idxToFall];
+                if (wordIdx !== -1) {
+                    let safeCount = 0;
+                    charMap.forEach((w, i) => {
+                        if (w === wordIdx && !fallenIndices.has(i)) safeCount++;
+                    });
+                    if (safeCount > 1) {
+                        fallenIndices.add(idxToFall);
+                    }
+                }
+            }
+
+            const cols = 14; const rows = 12; const total = cols * rows;
+            let html = ''; let pIdx = 0;
+
+            for (let i = 0; i < total; i++) {
+                let char = ''; let active = false; let style = '';
+                let isFallen = false;
+
+                if (pIdx < flatChars.length) {
+                    const pc = flatChars[pIdx];
+                    if (pc !== ' ') {
+                        char = pc;
+                        active = true;
+                        if (fallenIndices.has(pIdx)) isFallen = true;
+                    }
+                    pIdx++;
+                } else {
+                    let noise = ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+                    char = (Math.random() < bleedProgress) ? corrupt(noise, 2) : noise;
+                }
+
+                if (Math.random() > (0.98 - (bleedProgress * 0.1))) {
+                    let rot = (Math.random() * 10 - 5); let x = (Math.random() * 4 - 2);
+                    style = `transform: translate(${x}px, ${x}px) rotate(${rot}deg);`;
+                }
+
+                let classes = `char ${active ? 'active' : ''} ${isFallen ? 'fallen' : ''}`;
+                let holeClass = isFallen ? 'blood-hole visible' : 'blood-hole';
+
+                html += `
+            <div class="char-wrapper">
+                <div class="${holeClass}"></div>
+                <div class="${classes}" style="${style}">${char}</div>
+            </div>`;
+            }
+
+            container.innerHTML = html;
+            if (Math.random() > (0.95 - (bleedProgress * 0.1))) { container.style.transform = `scale(1.01) rotate(${Math.random() - 0.5}deg)`; }
+            else { container.style.transform = `scale(1) rotate(0deg)`; }
+        }
+
+        // --- SUBLIMINAL & ALERTS ---
+        function scheduleSubliminal() {
+            if (!isRunning) return;
+            let delay = Math.random() * 8000 + 4000;
+            if (Math.random() > 0.9) delay = 500;
+            setTimeout(() => { if (isRunning && !burstActive) { runBurst(Math.random() > 0.9 ? 3 : 1); scheduleSubliminal(); } else if (isRunning) scheduleSubliminal(); }, delay);
+        }
+
+        function runBurst(count) {
+            if (count <= 0 || !isRunning) { burstActive = false; return; }
+            const dur = triggerSubliminal();
+            setTimeout(() => runBurst(count - 1), dur + 300);
+        }
+
+        function triggerSubliminal() {
+            burstActive = true;
+            const isLong = Math.random() > 0.95;
+            let text = isLong ? LONG_MESSAGES[Math.floor(Math.random() * LONG_MESSAGES.length)] : MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+            let font = FONTS[Math.floor(Math.random() * FONTS.length)];
+            let size = isLong ? (Math.random() * 3 + 2) : (Math.random() > 0.95 ? (Math.random() * 20 + 15) : (Math.random() * 8 + 3));
+            let rot = Math.random() * 40 - 20;
+
+            subMsg.style.position = isLong ? 'fixed' : 'absolute';
+            subMsg.style.left = isLong ? '50%' : `${Math.floor(Math.random() * 100) - 10}%`;
+            subMsg.style.top = isLong ? '50%' : `${Math.floor(Math.random() * 100) - 10}%`;
+            subMsg.style.transform = isLong ? `translate(-50%,-50%) rotate(${rot}deg)` : `rotate(${rot}deg)`;
+            subMsg.style.whiteSpace = isLong ? 'normal' : 'nowrap';
+            subMsg.style.maxWidth = isLong ? '80vw' : 'none';
+
+            let color = text.includes("BLISS") ? '#fff' : (text.includes("ROTTING") ? '#400' : '#f00');
+            subMsg.innerText = text;
+            subMsg.style.fontFamily = font;
+            subMsg.style.fontSize = `${size}rem`;
+            subMsg.style.color = color;
+
+            const seed = Math.floor(Math.random() * 999);
+            subImg.src = `https://picsum.photos/seed/${seed}/800/600?grayscale`;
+            subImg.style.filter = `contrast(${150 + Math.random() * 100}%) brightness(${30 + Math.random() * 40}%) grayscale(100%) ${Math.random() > 0.8 ? 'invert(100%)' : ''}`;
+
+            subLayer.style.opacity = 1;
+            container.style.opacity = 0.1;
+
+            let dur = (Math.random() * 800 + 200) + (isLong ? 2000 : 0);
+            setTimeout(() => { subLayer.style.opacity = 0; container.style.opacity = 1; }, dur);
+            return dur;
+        }
+
+        function scheduleFakeAlert() {
+            setInterval(() => {
+                if (isRunning && Math.random() > 0.95 && fakeAlert.style.display === 'none') {
+                    alertText.innerText = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+                    fakeAlert.style.display = 'block';
+                }
+            }, 5000);
+        }
+        window.closeFakeAlert = () => { fakeAlert.style.display = 'none'; };
+
+        // --- ESCAPE LOGIC ---
+
+        window.requestFreedom = () => confirmModal.style.display = 'flex';
+        window.cancelFreedom = () => confirmModal.style.display = 'none';
+
+        window.grantFreedom = () => {
+            confirmModal.style.display = 'none';
+            const now = new Date();
+            const h = now.getHours();
+            const m = now.getMinutes();
+
+            if (h === 3 && m === 36) {
+                triggerGoodEnding();
+            } else if (h === 3 && (m === 35 || m === 37)) {
+                triggerAlmostEnding();
+            } else {
+                triggerBadEnding();
+            }
+        };
+
+        function triggerBadEnding() {
+            endingOverlay.style.background = '#000';
+            endingOverlay.style.display = 'flex';
+            endingOverlay.style.opacity = 1;
+            rewardVideo.style.display = 'none';
+
+            let flashes = 0;
+            const maxFlashes = 40;
+
+            const i = setInterval(() => {
+                endingOverlay.style.backgroundColor = Math.random() > 0.7 ? '#300' : '#000';
+                endingText.innerText = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+                endingText.style.color = Math.random() > 0.5 ? 'red' : '#800';
+                endingText.style.fontFamily = Math.random() > 0.5 ? 'Nosifer' : 'Creepster';
+                endingText.style.fontSize = (Math.random() * 5 + 3) + 'rem';
+
+                endingText.classList.remove('text-glitch-active');
+                void endingText.offsetWidth;
+                endingText.classList.add('text-glitch-active');
+
+                const seed = Math.floor(Math.random() * 9999);
+                endImg.style.display = 'block';
+                endImg.src = `https://picsum.photos/seed/${seed}/800/600?grayscale`;
+                endImg.style.filter = `contrast(200%) invert(${Math.random() > 0.5 ? 100 : 0}%) brightness(${Math.random() * 50 + 20}%)`;
+                endImg.style.opacity = Math.random() * 0.5 + 0.2;
+
+                flashes++;
+                if (flashes > maxFlashes) {
+                    clearInterval(i);
+                    finishBadEnding();
+                }
+            }, 100);
+        }
+
+        function finishBadEnding() {
+            endImg.style.display = 'none';
+            endingText.classList.remove('text-glitch-active');
+            endingText.style.maxWidth = 'none';
+            endingText.style.width = 'auto';
+            endingText.style.whiteSpace = 'nowrap';
+            endingText.style.transform = 'rotate(-15deg) scale(1.2)';
+            endingText.style.fontFamily = 'Nosifer';
+            endingText.style.fontSize = 'min(15vw, 8rem)';
+            endingText.style.color = 'red';
+            endingText.style.textShadow = '0 0 20px red, 4px 4px 0px #300';
+            endingText.innerHTML = '<span class="text-glitch-active" style="display:inline-block;">YOU ARE NEVER FREE</span>';
+            endingOverlay.style.backgroundColor = '#000';
+
+            setTimeout(() => {
+                endingText.style.transition = 'opacity 10s linear';
+                endingText.style.opacity = '0';
+                setTimeout(startDoubtSequence, 300000);
+            }, 2000);
+        }
+
+        function startDoubtSequence() {
+            const el = document.getElementById('ending-text');
+            el.innerHTML = ''; el.className = ''; el.style.transform = 'none';
+            el.style.fontFamily = 'Share Tech Mono'; el.style.fontSize = '0.9rem';
+            el.style.color = '#333'; el.style.textShadow = 'none';
+            el.style.whiteSpace = 'normal'; el.style.maxWidth = '600px';
+            el.style.transition = 'opacity 10s ease-in-out';
+
+            function cycle() {
+                el.innerText = DOUBT_MESSAGES[Math.floor(Math.random() * DOUBT_MESSAGES.length)];
+                el.style.opacity = '0.6';
+                setTimeout(() => { el.style.opacity = '0'; }, 15000);
+                setTimeout(cycle, 30000);
+            }
+            cycle();
+        }
+
+        function triggerAlmostEnding() {
+            endingOverlay.style.background = '#000';
+            endingOverlay.style.display = 'flex';
+            endingText.style.color = 'red';
+            endingText.style.fontFamily = 'Nosifer';
+            endingText.innerText = "ESCAPING...";
+            endingOverlay.style.opacity = 1;
+
+            setTimeout(() => {
+                endingOverlay.style.backgroundColor = '#1a1a1a';
+                endingText.style.color = '#ccc';
+                endingText.style.fontFamily = 'Share Tech Mono';
+                endingText.style.fontSize = '1.2rem';
+                endingText.innerText = "almost there. you were close, but you are not there yet. here's a little reward for what you went through...";
+                rewardVideo.style.display = 'block';
+                rewardVideo.play();
+            }, 2000);
+        }
+
+        function triggerGoodEnding() {
+            document.title = "Sunrise";
+            endingOverlay.style.background = '#000';
+            endingOverlay.style.display = 'flex';
+            endingOverlay.style.opacity = 1;
+            endingText.style.color = 'red';
+            endingText.innerText = "ESCAPING...";
+
+            setTimeout(() => {
+                endingOverlay.style.opacity = 1;
+                endingOverlay.style.backgroundColor = '#fff';
+                endingText.style.color = '#000';
+                endingText.style.fontFamily = 'Inter';
+                endingText.style.fontSize = '1.2rem';
+                endingText.innerText = "You have made it this far to search for an escape. Here it is. The light at the end of the tunnel.";
+
+                setTimeout(() => {
+                    activatePeacefulMode();
+                    saveVictory();
+                }, 5000);
+            }, 1500);
+        }
+
+        // --- PEACEFUL MODE LOGIC ---
+
+        function activatePeacefulMode() {
+            isPeaceful = true;
+            isRunning = false;
+            document.title = "My Dashboard";
+
+            // Hide Psychosis
+            startScreen.style.display = 'none'; // IMPORTANT: Hide start screen if triggering from saved state
+            endingOverlay.style.opacity = 0;
+            setTimeout(() => endingOverlay.style.display = 'none', 2000);
+            psychosisUI.style.display = 'none';
+            document.body.style.backgroundColor = 'var(--peace-bg)';
+            document.body.style.cursor = 'auto';
+
+            // Show Peaceful
+            peacefulUI.style.display = 'flex';
+            setTimeout(() => peacefulUI.style.opacity = 1, 100);
+
+            setInterval(updatePeacefulClock, 1000);
+            updatePeacefulClock();
+            fetchWeather();
+        }
+
+        function updatePeacefulClock() {
+            const now = new Date();
+            document.getElementById('digital-clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('date-display').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+            renderPeacefulWordGrid(now);
+        }
+
+        function renderPeacefulWordGrid(now) {
+            const h = now.getHours();
+            const m = now.getMinutes();
+            let words = ["IT", "IS"];
+            const getNum = (n) => STRINGS.nums[n] || "";
+            if (m === 0) { words.push(getNum(h % 12 || 12)); words.push("OCLOCK"); }
+            else if (m <= 30) { words.push(getNum(m)); if (m !== 15 && m !== 30) words.push("MINUTES"); words.push("PAST"); words.push(getNum(h % 12 || 12)); }
+            else { words.push(getNum(60 - m)); if (60 - m !== 15 && 60 - m !== 30) words.push("MINUTES"); words.push("TO"); words.push(getNum((h + 1) % 12 || 12)); }
+
+            const phrase = words.join(" ");
+            const phraseChars = phrase.replace(/\s+/g, '').split('');
+            let html = '';
+            let pIdx = 0;
+            const total = 14 * 6;
+
+            for (let i = 0; i < total; i++) {
+                let char = "";
+                let active = false;
+                if (pIdx < phraseChars.length) { char = phraseChars[pIdx]; active = true; pIdx++; }
+                else { char = ALPHABET[Math.floor(Math.random() * ALPHABET.length)]; }
+                html += `<div class="p-char ${active ? 'active' : ''}">${char}</div>`;
+            }
+            peacefulGrid.innerHTML = html;
+        }
+
+        function updateTheme(sunriseStr, sunsetStr) {
+            if (!sunriseStr || !sunsetStr) return;
+
+            const now = new Date();
+            // API returns ISO timestamps (e.g. 2023-10-27T06:45)
+            const sunrise = new Date(sunriseStr);
+            const sunset = new Date(sunsetStr);
+
+            if (now >= sunrise && now < sunset) {
+                document.body.classList.remove('peace-dark');
+            } else {
+                document.body.classList.add('peace-dark');
+            }
+        }
+
+        function updateGreeting(wcode) {
+            const now = new Date();
+            const hr = now.getHours();
+            let timeGreeting = "Good morning";
+            if (hr >= 12 && hr < 17) timeGreeting = "Good afternoon";
+            else if (hr >= 17 && hr < 22) timeGreeting = "Good evening";
+            else if (hr >= 22 || hr < 5) timeGreeting = "Good night";
+
+            let msg = `${timeGreeting}.`;
+            if (wcode !== undefined) {
+                if (wcode <= 3) msg += " It's a beautiful day.";
+                else if (wcode <= 48) msg += " Looks a bit foggy.";
+                else if (wcode >= 51 && wcode < 70) msg += " You might need an umbrella.";
+                else if (wcode >= 71) msg += " Stay warm inside.";
+                else msg += " The weather is calm.";
+            } else {
+                msg += " Welcome back.";
+            }
+            greetingMsg.innerText = msg;
+        }
+
+        function fetchWeather() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    // Add daily sunrise/sunset to API call
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto`;
+
+                    fetch(url).then(res => res.json()).then(data => {
+                        // Update Theme based on sun
+                        if (data.daily && data.daily.sunrise && data.daily.sunset) {
+                            updateTheme(data.daily.sunrise[0], data.daily.sunset[0]);
+                        }
+
+                        const wcode = data.current_weather.weathercode;
+                        document.getElementById('weather-temp').innerText = `${data.current_weather.temperature}°C`;
+
+                        updateGreeting(wcode);
+
+                        let forecastHtml = '';
+                        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                        for (let i = 0; i < 3; i++) {
+                            const date = new Date(data.daily.time[i]);
+                            const dayName = i === 0 ? 'Today' : days[date.getDay()];
+                            const min = data.daily.temperature_2m_min[i];
+                            const max = data.daily.temperature_2m_max[i];
+                            forecastHtml += `<div class="forecast-item"><span>${dayName}</span><span>${min}° / ${max}°</span></div>`;
+                        }
+                        document.getElementById('weather-forecast').innerHTML = forecastHtml;
+                    });
+                }, () => {
+                    document.getElementById('weather-temp').innerText = "--";
+                    updateGreeting(undefined);
+                });
+            } else {
+                updateGreeting(undefined);
+            }
+        }
+
+        // --- CALENDAR ---
+        window.openCalendar = () => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            document.getElementById('cal-month-title').innerText = `${monthNames[month]} ${year}`;
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            let html = '';
+            ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => html += `<div style="font-weight:bold">${d}</div>`);
+            for (let i = 0; i < firstDay; i++) html += `<div></div>`;
+            for (let i = 1; i <= daysInMonth; i++) {
+                const isToday = i === now.getDate();
+                html += `<div class="cal-day ${isToday ? 'today' : ''}">${i}</div>`;
+            }
+            document.getElementById('calendar-grid').innerHTML = html;
+            document.getElementById('calendar-modal').style.display = 'flex';
+        };
+
+        window.closeCalendar = () => { document.getElementById('calendar-modal').style.display = 'none'; };
+
+        // --- AUTO LOAD ---
+        loadGameState();
+
+    </script>
+</body>
+
+</html>

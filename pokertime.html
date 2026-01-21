@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack Poker Clock</title>
+    <style>
+        :root {
+            --felt-green: #35654d;
+            --card-width: 60px;
+            --card-height: 84px;
+            --text-color: #f0f0f0;
+        }
+
+        body {
+            background-color: var(--felt-green);
+            background-image: radial-gradient(circle at center, #417a5b 0%, #2a523e 100%);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- Header Section (Date & Weather) --- */
+        #header {
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            box-sizing: border-box;
+            border-bottom: 2px solid #1a3326;
+        }
+
+        .info-group {
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        /* --- Clock Table Section --- */
+        #table {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            padding: 40px 20px;
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+
+        .hand-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            background: rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hand-label {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            color: #ffd700;
+            text-shadow: 1px 1px 0 #000;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        .hand-total {
+            background: #000;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: sans-serif;
+        }
+
+        .card-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            /* Ensure cards don't stretch */
+            align-items: flex-start;
+        }
+
+        /* --- Card Styles --- */
+        .card {
+            width: var(--card-width);
+            height: var(--card-height);
+            background-color: white;
+            border-radius: 6px;
+            position: relative;
+            /* Essential for absolute positioning of corners */
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            font-family: sans-serif;
+            user-select: none;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card.red {
+            color: #d40000;
+        }
+
+        .card.black {
+            color: #000000;
+        }
+
+        /* Shared Corner Styles */
+        .card-corner {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 14px;
+            line-height: 1;
+            font-weight: bold;
+            padding: 4px;
+        }
+
+        /* Diagonal Placement */
+        .top-left {
+            top: 0;
+            left: 0;
+        }
+
+        .bottom-right {
+            bottom: 0;
+            right: 0;
+            transform: rotate(180deg);
+        }
+
+        .card-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+        }
+
+        /* Loading / Permission State */
+        #weather-value {
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="header">
+        <div class="info-group">
+            <div class="info-label">Date</div>
+            <div class="info-value" id="date-display">Loading...</div>
+        </div>
+        <div class="info-group">
+            <div class="info-label">Weather</div>
+            <div class="info-value" id="weather-display" onclick="getWeather()">
+                <span style="font-size: 0.9rem; text-decoration: underline; cursor: pointer;">Enable Location</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="table">
+        <!-- Hours -->
+        <div class="hand-container">
+            <div class="hand-label">
+                <span>Hours Hand</span>
+                <span class="hand-total" id="hours-total">00</span>
+            </div>
+            <div class="card-row" id="hours-cards"></div>
+        </div>
+
+        <!-- Minutes -->
+        <div class="hand-container">
+            <div class="hand-label">
+                <span>Minutes Hand</span>
+                <span class="hand-total" id="minutes-total">00</span>
+            </div>
+            <div class="card-row" id="minutes-cards"></div>
+        </div>
+
+        <!-- Seconds -->
+        <div class="hand-container">
+            <div class="hand-label">
+                <span>Seconds Hand</span>
+                <span class="hand-total" id="seconds-total">00</span>
+            </div>
+            <div class="card-row" id="seconds-cards"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration & Constants ---
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const VALUES = [
+            { val: 11, label: 'A' },
+            { val: 10, label: 'K' },
+            { val: 10, label: 'Q' },
+            { val: 10, label: 'J' },
+            { val: 10, label: '10' },
+            { val: 9, label: '9' },
+            { val: 8, label: '8' },
+            { val: 7, label: '7' },
+            { val: 6, label: '6' },
+            { val: 5, label: '5' },
+            { val: 4, label: '4' },
+            { val: 3, label: '3' },
+            { val: 2, label: '2' },
+            { val: 1, label: 'A' }
+        ];
+
+        // --- Core Logic: Number to Cards ---
+        function getCardsForSum(target) {
+            if (target === 0) return [{ val: 0, label: 'JKR', suit: '★' }]; // Joker for 0
+
+            let currentSum = 0;
+            let hand = [];
+
+            while (currentSum < target) {
+                const remainder = target - currentSum;
+                // Find cards that fit
+                const validCards = VALUES.filter(c => c.val <= remainder);
+
+                // Add variety by picking randomly from top fitting cards
+                const pickIndex = Math.floor(Math.random() * Math.min(3, validCards.length));
+                const choice = validCards[pickIndex];
+
+                hand.push({
+                    ...choice,
+                    suit: SUITS[Math.floor(Math.random() * SUITS.length)]
+                });
+                currentSum += choice.val;
+            }
+            return hand;
+        }
+
+        // --- DOM Rendering ---
+        function createCardElement(cardData) {
+            const el = document.createElement('div');
+            const isRed = (cardData.suit === '♥' || cardData.suit === '♦');
+
+            el.className = `card ${isRed ? 'red' : 'black'}`;
+
+            // Handle Joker special styling
+            if (cardData.label === 'JKR') {
+                el.innerHTML = `
+                    <div class="card-corner top-left"><span>JKR</span></div>
+                    <div class="card-center" style="font-size: 30px">★</div>
+                    <div class="card-corner bottom-right"><span>JKR</span></div>
+                `;
+                el.style.color = '#551a8b'; // Purple for Joker
+                return el;
+            }
+
+            // Standard Card Layout
+            el.innerHTML = `
+                <div class="card-corner top-left">
+                    <span>${cardData.label}</span>
+                    <span style="font-size: 10px;">${cardData.suit}</span>
+                </div>
+                
+                <div class="card-center">${cardData.suit}</div>
+                
+                <div class="card-corner bottom-right">
+                    <span>${cardData.label}</span>
+                    <span style="font-size: 10px;">${cardData.suit}</span>
+                </div>
+            `;
+            return el;
+        }
+
+        function renderHand(elementId, totalId, value) {
+            const container = document.getElementById(elementId);
+            const totalDisplay = document.getElementById(totalId);
+
+            container.innerHTML = '';
+
+            const cards = getCardsForSum(value);
+            cards.forEach(card => {
+                container.appendChild(createCardElement(card));
+            });
+
+            totalDisplay.textContent = value < 10 ? `0${value}` : value;
+        }
+
+        // --- Time Logic ---
+        function updateClock() {
+            const now = new Date();
+
+            let hours = now.getHours();
+            // const ampm = hours >= 12 ? 'PM' : 'AM'; // Optional, if you want to display AM/PM
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+
+            // Date String
+            const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+            document.getElementById('date-display').textContent = now.toLocaleDateString('en-US', options);
+
+            renderHand('hours-cards', 'hours-total', hours);
+            renderHand('minutes-cards', 'minutes-total', minutes);
+            renderHand('seconds-cards', 'seconds-total', seconds);
+        }
+
+        // --- Weather Logic (Open-Meteo) ---
+        function getWeather() {
+            const display = document.getElementById('weather-display');
+            display.innerHTML = "Locating...";
+
+            if (!navigator.geolocation) {
+                display.innerHTML = "Geo Not Supported";
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    try {
+                        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+                        const data = await response.json();
+                        const temp = data.current_weather.temperature;
+                        const code = data.current_weather.weathercode;
+
+                        let condition = "Clear";
+                        if (code > 3) condition = "Cloudy";
+                        if (code > 45) condition = "Fog";
+                        if (code > 50) condition = "Drizzle";
+                        if (code > 60) condition = "Rain";
+                        if (code > 70) condition = "Snow";
+                        if (code > 80) condition = "Showers";
+                        if (code > 95) condition = "Storm";
+
+                        display.innerHTML = `${temp}°C <br><span style="font-size:0.8rem">${condition}</span>`;
+                    } catch (e) {
+                        display.innerHTML = "API Error";
+                    }
+                },
+                (error) => {
+                    console.error("Geo Error:", error);
+                    display.innerHTML = "Loc Required<br><small>Click to Retry</small>";
+                }
+            );
+        }
+
+        // --- Initialization ---
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Attempt weather fetch on load
+        getWeather();
+
+    </script>
+</body>
+
+</html>

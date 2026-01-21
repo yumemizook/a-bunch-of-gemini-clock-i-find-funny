@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle of the Elements: Temple Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cinzel+Decorative:wght@400;700&display=swap');
+
+        :root {
+            --gold: #d4af37;
+            --gold-dim: #8a702a;
+            --stone-bg: rgba(20, 20, 20, 0.85);
+            --glass-bg: rgba(0, 0, 0, 0.6);
+            --water-glow: #00bcd4;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Cinzel', serif;
+            color: #f0e6d2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* --- LAYER 1: DYNAMIC SKY --- */
+        .sky {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: background 3s ease;
+            z-index: 1;
+        }
+
+        .sky.dawn {
+            background: linear-gradient(to bottom, #2c3e50, #e67e22, #f1c40f);
+        }
+
+        .sky.day {
+            background: linear-gradient(to bottom, #2980b9, #87CEEB, #fff);
+        }
+
+        .sky.dusk {
+            background: linear-gradient(to bottom, #2c3e50, #8e44ad, #c0392b);
+        }
+
+        .sky.night {
+            background: linear-gradient(to bottom, #000000, #1a1a2e, #16213e);
+        }
+
+        .sky.night::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(white 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.5;
+        }
+
+        /* --- LAYER 2: CELESTIAL BODY --- */
+        .celestial-track {
+            position: absolute;
+            bottom: -50px;
+            left: 10%;
+            width: 80%;
+            height: 120%;
+            z-index: 2;
+            pointer-events: none;
+            transform-origin: 50% 100%;
+            transition: transform 1s linear;
+        }
+
+        .celestial-body {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+            transition: background 1s;
+        }
+
+        .sky.day .celestial-body,
+        .sky.dawn .celestial-body {
+            background: radial-gradient(#fff, #f1c40f);
+            box-shadow: 0 0 60px #f39c12;
+        }
+
+        .sky.night .celestial-body,
+        .sky.dusk .celestial-body {
+            background: radial-gradient(#dcdcdc, #7f8c8d);
+            box-shadow: 0 0 30px #bdc3c7;
+        }
+
+        /* --- LAYER 3: LANDSCAPE --- */
+        .landscape {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40%;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .pyramid {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 150px solid transparent;
+            border-right: 150px solid transparent;
+            border-bottom: 250px solid #1a1a1a;
+            filter: drop-shadow(0 0 20px rgba(0, 0, 0, 0.5));
+            z-index: 1;
+        }
+
+        .dunes {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            background: #0f0f0f;
+            border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+            transform: scaleX(1.5);
+            z-index: 2;
+        }
+
+        .ruins {
+            position: absolute;
+            bottom: 0;
+            left: 10%;
+            display: flex;
+            gap: 40px;
+            z-index: 3;
+        }
+
+        .column {
+            width: 30px;
+            height: 180px;
+            background: linear-gradient(to right, #222, #000);
+            position: relative;
+        }
+
+        .column::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            left: -5px;
+            width: 40px;
+            height: 15px;
+            background: #222;
+        }
+
+        .column.broken {
+            height: 80px;
+        }
+
+        /* --- LAYER 4: ARTIFACT UI --- */
+        .artifact-container {
+            position: relative;
+            z-index: 10;
+            background: var(--stone-bg);
+            border: 4px solid var(--gold);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8), inset 0 0 50px #000;
+            border-radius: 20px;
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            max-width: 600px;
+            backdrop-filter: blur(5px);
+        }
+
+        /* CLEPSYDRA (Left Column) */
+        .clepsydra-wrapper {
+            grid-row: 1 / span 2;
+            position: relative;
+            height: 350px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .clepsydra-glass {
+            width: 60px;
+            height: 100%;
+            background: var(--glass-bg);
+            border: 3px solid var(--gold-dim);
+            border-radius: 30px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px #000;
+            z-index: 1;
+        }
+
+        .water {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #1565c0, var(--water-glow));
+            transition: height 1s linear;
+            box-shadow: 0 0 20px var(--water-glow);
+            opacity: 0.9;
+        }
+
+        /* Guide lines inside glass */
+        .guide-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(212, 175, 55, 0.3);
+            z-index: 2;
+        }
+
+        /* Marker Container */
+        .marker-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Individual Markers */
+        .marker {
+            position: absolute;
+            left: 10px;
+            font-size: 0.8rem;
+            color: var(--gold);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            /* Move down 50% of own height to center on line, 
+               PLUS 1px extra as requested.
+            */
+            transform: translateY(calc(50% + 1px));
+        }
+
+        .marker::after {
+            content: '';
+            display: block;
+            width: 10px;
+            height: 2px;
+            background: var(--gold);
+            margin-left: 5px;
+        }
+
+        /* Fixed Positions */
+        .marker.h24 {
+            bottom: 100%;
+        }
+
+        .marker.h18 {
+            bottom: 75%;
+        }
+
+        .marker.h12 {
+            bottom: 50%;
+        }
+
+        .marker.h06 {
+            bottom: 25%;
+        }
+
+        .marker.h00 {
+            bottom: 0%;
+        }
+
+        /* INFO PANELS */
+        .panel {
+            border: 1px solid var(--gold-dim);
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .orb {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 2px solid var(--gold);
+            background: #333;
+            box-shadow: inset -5px -5px 15px rgba(0, 0, 0, 0.8);
+            transition: all 1s;
+        }
+
+        .orb.sun {
+            background: radial-gradient(circle at 30% 30%, #ffd700, #ff8c00);
+            box-shadow: 0 0 20px #ffd700;
+        }
+
+        .orb.rain {
+            background: radial-gradient(circle at 30% 30%, #4fc3f7, #0277bd);
+            box-shadow: 0 0 20px #03a9f4;
+        }
+
+        .orb.cloud {
+            background: radial-gradient(circle at 30% 30%, #cfd8dc, #546e7a);
+        }
+
+        .orb.night {
+            background: radial-gradient(circle at 30% 30%, #fff, #b0bec5);
+            box-shadow: 0 0 15px #fff;
+        }
+
+        .text-group h3 {
+            margin: 0;
+            color: var(--gold);
+            font-size: 1rem;
+        }
+
+        .text-group p {
+            margin: 5px 0 0;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .big-icon {
+            font-size: 2.5rem;
+            color: var(--gold);
+        }
+
+        .footer {
+            grid-column: 1 / span 2;
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--gold-dim);
+            margin-top: -10px;
+        }
+    </style>
+</head>
+
+<body class="sky day">
+
+    <div class="sky" id="skyLayer"></div>
+    <div class="celestial-track" id="celestialTrack">
+        <div class="celestial-body"></div>
+    </div>
+
+    <div class="landscape">
+        <div class="pyramid"></div>
+        <div class="dunes"></div>
+        <div class="ruins">
+            <div class="column"></div>
+            <div class="column"></div>
+            <div class="column broken"></div>
+            <div class="column"></div>
+        </div>
+    </div>
+
+    <div class="artifact-container">
+
+        <div class="clepsydra-wrapper">
+            <div class="clepsydra-glass">
+                <div class="water" id="waterLevel"></div>
+                <div class="guide-line" style="bottom: 75%"></div>
+                <div class="guide-line" style="bottom: 50%"></div>
+                <div class="guide-line" style="bottom: 25%"></div>
+            </div>
+
+            <div class="marker-container">
+                <div class="marker h24">XXIV</div>
+                <div class="marker h18">XVIII</div>
+                <div class="marker h12">XII</div>
+                <div class="marker h06">VI</div>
+                <div class="marker h00">0</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="big-icon" id="zodiacIcon">♈</div>
+            <div class="text-group">
+                <h3 id="dateTitle">Loading...</h3>
+                <p id="dateSub">Reading stars...</p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="orb" id="weatherOrb"></div>
+            <div class="text-group">
+                <h3 id="weatherTitle">Divining...</h3>
+                <p id="weatherDesc">Seeking location...</p>
+                <p id="tempDisplay" style="color:var(--water-glow); font-weight:bold;"></p>
+            </div>
+        </div>
+
+        <div class="footer">ARCHAIC CHRONOMETER // v4.1</div>
+    </div>
+
+    <script>
+        // 1. CLEPSYDRA LOGIC
+        function updateTime() {
+            const now = new Date();
+            const totalSeconds = (now.getHours() * 3600) + (now.getMinutes() * 60) + now.getSeconds();
+            const daySeconds = 86400;
+
+            const percent = (totalSeconds / daySeconds) * 100;
+            document.getElementById('waterLevel').style.height = `${percent}%`;
+
+            // Celestial Rotation
+            const rotation = ((totalSeconds / daySeconds) * 360) - 180;
+            document.getElementById('celestialTrack').style.transform = `rotate(${rotation}deg)`;
+
+            // Background
+            const hour = now.getHours();
+            const sky = document.getElementById('skyLayer');
+
+            let period = 'night';
+            if (hour >= 5 && hour < 8) period = 'dawn';
+            else if (hour >= 8 && hour < 17) period = 'day';
+            else if (hour >= 17 && hour < 20) period = 'dusk';
+
+            sky.className = `sky ${period}`;
+            document.body.className = `sky ${period}`;
+        }
+
+        // 2. ZODIAC
+        function updateDate() {
+            const now = new Date();
+            const day = now.getDate();
+            const month = now.getMonth();
+
+            const signs = ['♑', '♒', '♓', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐'];
+            const names = ['Capricorn', 'Aquarius', 'Pisces', 'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius'];
+            const ends = [19, 18, 20, 19, 20, 20, 22, 22, 22, 22, 21, 21];
+
+            let idx = month;
+            if (day > ends[month]) idx = (idx + 1) % 12;
+            if (month === 11 && day > 21) idx = 0;
+
+            document.getElementById('zodiacIcon').innerText = signs[idx];
+            document.getElementById('dateTitle').innerText = names[idx];
+            document.getElementById('dateSub').innerText = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+        }
+
+        // 3. WEATHER
+        function fetchWeather(lat, lon) {
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
+                .then(res => res.json())
+                .then(data => {
+                    const w = data.current_weather;
+                    const code = w.weathercode;
+                    const isDay = w.is_day;
+
+                    let type = 'cloud';
+                    let title = 'Aeolus (Cloud)';
+                    let desc = 'Overcast';
+
+                    if (code === 0) {
+                        type = isDay ? 'sun' : 'night';
+                        title = isDay ? 'Helios (Clear)' : 'Selene (Clear)';
+                        desc = 'Sky is clear';
+                    } else if (code <= 3) {
+                        type = 'cloud';
+                        title = 'Aeolus (Cloudy)';
+                        desc = 'Winds gathering';
+                    } else if (code <= 67 || (code >= 80 && code <= 99)) {
+                        type = 'rain';
+                        title = 'Zeus (Storm)';
+                        desc = 'Rain falls';
+                    }
+
+                    const orb = document.getElementById('weatherOrb');
+                    orb.className = `orb ${type}`;
+                    document.getElementById('weatherTitle').innerText = title;
+                    document.getElementById('weatherDesc').innerText = desc;
+                    document.getElementById('tempDisplay').innerText = `${w.temperature}°C`;
+                })
+                .catch(e => console.error("Weather API Error"));
+        }
+
+        function initLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+                    err => {
+                        fetchWeather(29.9792, 31.1342);
+                        document.getElementById('weatherDesc').innerText = "Giza (Loc Denied)";
+                    }
+                );
+            } else {
+                fetchWeather(29.9792, 31.1342);
+            }
+        }
+
+        setInterval(updateTime, 1000);
+        updateTime();
+        updateDate();
+        initLocation();
+
+    </script>
+</body>
+
+</html>
